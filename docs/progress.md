@@ -29,11 +29,12 @@
   - Created `tests/conftest.py` with async DB session fixtures (transaction rollback cleanup)
   - Wrote DB connectivity smoke test (`tests/integration/test_db_connectivity.py`)
   - Confirmed: `pytest` runs green (1 passed in 0.14s)
-- [ ] [SETUP] LLM mock infrastructure (PRD Section 6.2) ← moved from Phase 1
-  - `respx` for async HTTP mocking of OpenRouter
-  - Response fixtures directory: `tests/fixtures/llm/openrouter_responses/`
-  - `MOCK_LLM=true` env var to switch between fixtures and live APIs
-  - `@pytest.mark.integration` marker for real API tests
+- [x] [SETUP] LLM mock infrastructure (PRD Section 6.2) ← moved from Phase 1
+  - `respx` for async HTTP mocking of OpenRouter (fixture in `conftest.py`)
+  - Response fixtures: `tests/fixtures/llm/openrouter_responses/` (chat_completion.json, embedding.json)
+  - `MOCK_LLM=true` env var toggle via `mock_llm` session fixture
+  - `@pytest.mark.integration` marker configured in `pyproject.toml`
+  - Verified: 5 tests pass (fixture loading, respx interception, MOCK_LLM toggle)
 - [ ] [SETUP] Config validation tests (PRD Section 14, implied)
   - Test invalid env vars, missing required fields, bad formats
   - Verify Pydantic settings model rejects bad config on startup
