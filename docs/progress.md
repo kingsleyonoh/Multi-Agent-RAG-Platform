@@ -53,9 +53,11 @@
   - `src/main.py` — FastAPI app factory with async lifespan, `/api/health` endpoint
   - 5 TDD tests: create_app returns FastAPI, health returns 200/status/environment
   - Verified: 42 total tests pass (5 main + 32 config + 4 LLM mock + 1 DB)
-- [ ] [SETUP] Environment-specific config profiles (PRD Section 10, 14, cross-cutting)
-  - Production vs development config differentiation
-  - Document prod env vars in `.env.example`
+- [x] [SETUP] Environment-specific config profiles (PRD Section 10, 14, cross-cutting)
+  - Computed properties: `is_production`, `is_testing`, `debug` on Settings
+  - `.env.example` annotated with `# PROD:` notes for production values
+  - 6 TDD tests for computed properties
+  - Verified: 48 total tests pass (6 env + 32 config + 5 main + 4 LLM mock + 1 DB)
 
 ---
 
