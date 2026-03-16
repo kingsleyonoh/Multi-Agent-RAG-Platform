@@ -6,16 +6,16 @@
 
 ### Dev Branch Workflow
 1. All implementation work happens on `dev` branch
-2. Tests run against local services (Supabase, etc.)
+2. Tests run against local Docker services (PostgreSQL + pgvector, Neo4j, Redis)
 3. Each completed item → commit → push to `dev`
 4. Run full test suite frequently
 
 ### When Ready to Deploy
 1. Ensure ALL tests pass on `dev`
 2. Merge `dev` → `main`
-3. Push `main` → triggers deployment pipeline
-4. Run migrations against production database
-5. Verify deployment in production
+3. SSH into Hetzner VPS → `git pull origin main`
+4. `docker compose run --rm app alembic upgrade head` (run migrations)
+5. `docker compose up -d` → verify deployment
 
 ### Emergency Hotfix Flow
 - Branch from `main` → `hotfix/description`
@@ -32,7 +32,7 @@
 
 ### Input Validation
 - Validate ALL user input at the boundary (API route, form handler)
-- Use framework validators (Pydantic, Zod, Django Forms)
+- Use Pydantic v2 models for all request/response validation
 - Never trust client-side validation alone
 
 ### Authentication & Authorization
