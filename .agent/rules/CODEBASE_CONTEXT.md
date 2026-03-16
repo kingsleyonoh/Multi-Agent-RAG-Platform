@@ -104,7 +104,9 @@ multi-agent-rag-platform/
 | `REDIS_URL` | Redis cache + session connection | Docker Compose |
 | `API_KEYS` | API key(s) for auth middleware | Manual config |
 | `DAILY_COST_LIMIT_USD` | Per-day LLM spend cap | Manual config |
+| `TEST_DATABASE_URL` | PostgreSQL connection for pytest test runs | `.env` (same as `DATABASE_URL` locally) |
 | `MOCK_LLM` | Use fixture responses instead of live APIs | Test env |
+| `DEMO_MODE` | Enable public demo security protections | Manual config |
 
 ## Commands
 
