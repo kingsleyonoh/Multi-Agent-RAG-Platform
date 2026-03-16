@@ -15,11 +15,11 @@
   - Redis 7 via Docker Compose (port 6380)
   - Verified each service starts and accepts connections
   - Remapped ports to avoid conflicts with existing containers
-- [ ] [SETUP] Environment configuration (PRD Section 14)
-  - Create `.env` from `.env.example` with local service URLs
-  - Configure `TEST_DATABASE_URL` pointing to local PostgreSQL
-  - Verify `.env` is in `.gitignore`
-  - Document env setup in `CODEBASE_CONTEXT.md`
+- [x] [SETUP] Environment configuration (PRD Section 14)
+  - Created `.env` from `.env.example` with local service URLs
+  - Configured `TEST_DATABASE_URL` pointing to local PostgreSQL (port 5433)
+  - Verified `.env` is in `.gitignore` (not tracked by git)
+  - Documented `TEST_DATABASE_URL` and `DEMO_MODE` in `CODEBASE_CONTEXT.md`
 
 ### Testing Infrastructure
 - [ ] [SETUP] Testing infrastructure (PRD Section 3)
