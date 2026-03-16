@@ -46,14 +46,13 @@
   - Realistic domain content for ingestion pipeline testing
 
 ### Python Project Scaffolding
-- [ ] [SETUP] Python project structure (PRD Section 9)
-  - Create `pyproject.toml` with project metadata + dependencies
-  - Create `src/` directory structure matching PRD Section 9
-  - Create `src/__init__.py` and all sub-package `__init__.py` files
-  - Create `src/config.py` with Pydantic settings model (validate all PRD §14 env vars)
-    - Include: `EMBEDDING_MODEL`, `RETRIEVAL_TOP_K`, `RERANK_TOP_N`, `SIMILARITY_THRESHOLD`
-    - Include: `CACHE_SIMILARITY_THRESHOLD`, `CACHE_TTL_HOURS`, `EVAL_JUDGE_MODEL`
-  - Create `src/main.py` with FastAPI app factory + lifespan handler for graceful shutdown
+- [x] [SETUP] Python project structure (PRD Section 9)
+  - `pyproject.toml` already existed (earlier bootstrap)
+  - 16 sub-package `__init__.py` files + 2 empty dirs (`prompts/templates/`, `db/migrations/`)
+  - `src/config.py` already existed (config validation task)
+  - `src/main.py` — FastAPI app factory with async lifespan, `/api/health` endpoint
+  - 5 TDD tests: create_app returns FastAPI, health returns 200/status/environment
+  - Verified: 42 total tests pass (5 main + 32 config + 4 LLM mock + 1 DB)
 - [ ] [SETUP] Environment-specific config profiles (PRD Section 10, 14, cross-cutting)
   - Production vs development config differentiation
   - Document prod env vars in `.env.example`
