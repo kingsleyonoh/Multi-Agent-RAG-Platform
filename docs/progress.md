@@ -40,9 +40,10 @@
   - 32 tests: required fields, defaults, type validation, threshold ranges, enum validation
   - `_NoEnvSettings` subclass for test isolation from `.env` file
   - Verified: 37 total tests pass (32 config + 4 LLM mock + 1 DB)
-- [ ] [SETUP] Test fixture data (PRD Section 11, implied)
-  - Create `tests/fixtures/sample.pdf` and `tests/fixtures/sample.txt`
-  - Provide realistic test documents for dev and integration testing
+- [x] [SETUP] Test fixture data (PRD Section 11, implied)
+  - `tests/fixtures/sample.txt` (3.5 KB) — RAG architecture content, 5 sections
+  - `tests/fixtures/sample.pdf` (3.7 KB, 2 pages) — system design overview, 5 sections
+  - Realistic domain content for ingestion pipeline testing
 
 ### Python Project Scaffolding
 - [ ] [SETUP] Python project structure (PRD Section 9)
