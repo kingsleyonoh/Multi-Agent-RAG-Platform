@@ -35,9 +35,11 @@
   - `MOCK_LLM=true` env var toggle via `mock_llm` session fixture
   - `@pytest.mark.integration` marker configured in `pyproject.toml`
   - Verified: 5 tests pass (fixture loading, respx interception, MOCK_LLM toggle)
-- [ ] [SETUP] Config validation tests (PRD Section 14, implied)
-  - Test invalid env vars, missing required fields, bad formats
-  - Verify Pydantic settings model rejects bad config on startup
+- [x] [SETUP] Config validation tests (PRD Section 14, implied)
+  - Created `src/config.py` with Pydantic `BaseSettings` model (all PRD §14 env vars)
+  - 32 tests: required fields, defaults, type validation, threshold ranges, enum validation
+  - `_NoEnvSettings` subclass for test isolation from `.env` file
+  - Verified: 37 total tests pass (32 config + 4 LLM mock + 1 DB)
 - [ ] [SETUP] Test fixture data (PRD Section 11, implied)
   - Create `tests/fixtures/sample.pdf` and `tests/fixtures/sample.txt`
   - Provide realistic test documents for dev and integration testing
