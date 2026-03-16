@@ -30,75 +30,24 @@
 ```
 multi-agent-rag-platform/
 ├── src/
-│   ├── main.py                        # FastAPI app factory + startup
-│   ├── config.py                      # Pydantic settings model
-│   ├── ingestion/                     # Document → chunks → embeddings
-│   │   ├── pipeline.py
-│   │   ├── chunker.py
-│   │   ├── embedder.py
-│   │   └── extractors/               # PDF, URL, text extractors
-│   ├── retrieval/                     # Hybrid search (vector + graph)
-│   │   ├── engine.py
-│   │   ├── vector_search.py
-│   │   ├── graph_search.py
-│   │   └── reranker.py
-│   ├── llm/                           # Multi-model routing + streaming
-│   │   ├── router.py
-│   │   ├── openrouter.py
-│   │   ├── streaming.py
-│   │   └── cost_tracker.py
-│   ├── agents/                        # LangGraph agent executor + tools
-│   │   ├── executor.py
-│   │   ├── registry.py
-│   │   └── tools/
-│   ├── guardrails/                    # Input + output safety pipeline
-│   │   ├── pipeline.py
-│   │   ├── injection.py
-│   │   ├── pii.py
-│   │   ├── content_safety.py
-│   │   └── hallucination.py
-│   ├── memory/                        # Conversation memory (short/long/entity)
-│   │   ├── manager.py
-│   │   ├── short_term.py
-│   │   ├── long_term.py
-│   │   └── entity.py
-│   ├── cache/
-│   │   └── semantic.py                # Semantic similarity cache
-│   ├── evaluation/                    # RAG quality scoring
-│   │   ├── harness.py
-│   │   ├── relevance.py
-│   │   ├── faithfulness.py
-│   │   └── correctness.py
-│   ├── prompts/
-│   │   ├── registry.py                # Prompt CRUD + versioning
-│   │   └── templates/                 # Jinja2 prompt templates
-│   ├── mcp/
-│   │   └── server.py                  # MCP server for external agents
-│   ├── api/                           # FastAPI route handlers
-│   │   ├── chat.py
-│   │   ├── documents.py
-│   │   ├── conversations.py
-│   │   ├── graph.py
-│   │   ├── prompts.py
-│   │   ├── metrics.py
-│   │   ├── health.py
-│   │   └── middleware/
-│   │       ├── auth.py
-│   │       ├── rate_limit.py
-│   │       └── errors.py
-│   ├── db/
-│   │   ├── postgres.py                # async SQLAlchemy + pgvector
-│   │   ├── neo4j.py                   # Neo4j driver wrapper
-│   │   ├── redis.py                   # Redis client
-│   │   └── migrations/alembic/
-│   └── lib/
-│       ├── logger.py                  # structlog JSON logging
-│       └── utils.py                   # Shared utilities
-├── tests/
-│   ├── unit/
-│   ├── integration/
-│   └── fixtures/llm/openrouter_responses/
-├── docker-compose.yml                 # Dev: PG + pgvector, Neo4j, Redis
+│   ├── main.py
+│   ├── config.py
+│   ├── ingestion/          # pipeline.py, chunker.py, embedder.py, extractors/
+│   ├── retrieval/          # engine.py, vector_search.py, graph_search.py, reranker.py
+│   ├── llm/                # router.py, openrouter.py, streaming.py, cost_tracker.py
+│   ├── agents/             # executor.py, registry.py, tools/
+│   ├── guardrails/         # pipeline.py, injection.py, pii.py, content_safety.py, hallucination.py
+│   ├── memory/             # manager.py, short_term.py, long_term.py, entity.py
+│   ├── cache/              # semantic.py
+│   ├── evaluation/         # harness.py, relevance.py, faithfulness.py, correctness.py
+│   ├── prompts/            # registry.py, templates/
+│   ├── mcp/                # server.py
+│   ├── api/                # chat.py, documents.py, conversations.py, graph.py, prompts.py, metrics.py, health.py
+│   │   └── middleware/     # auth.py, rate_limit.py, errors.py
+│   ├── db/                 # postgres.py, neo4j.py, redis.py, migrations/alembic/
+│   └── lib/                # logger.py, utils.py
+├── tests/                  # unit/, integration/, fixtures/llm/openrouter_responses/
+├── docker-compose.yml
 ├── Dockerfile
 ├── docker-compose.prod.yml
 ├── pyproject.toml
@@ -174,15 +123,11 @@ multi-agent-rag-platform/
 
 ## Key Patterns & Conventions
 
-- File naming: `snake_case.py`
-- Classes: `PascalCase`
-- Functions: `snake_case`
-- Constants: `UPPER_SNAKE_CASE`
-- Import order: stdlib → third-party → local (blank line between groups)
-- Error handling: Pydantic validation at API boundary, structured error responses
-- All LLM calls go through OpenRouter client (`src/llm/openrouter.py`) — never call providers directly
-- Config via `src/config.py` Pydantic Settings — never read env vars directly in modules
-- Dependency hierarchy: `lib/ → db/ → cache/,ingestion/,retrieval/ → llm/ → guardrails/,memory/ → agents/,evaluation/ → api/ → main.py`
+> Detailed naming and import conventions are in `CODING_STANDARDS_DOMAIN.md`.
+
+- All LLM calls go through `src/llm/openrouter.py` — never call providers directly
+- Config via `src/config.py` Pydantic Settings — never read env vars directly
+- Dependency hierarchy: see `CODING_STANDARDS_DOMAIN.md` → Architecture Rules
 
 ## Shared Foundation (MUST READ before any implementation)
 
