@@ -22,14 +22,13 @@
   - Documented `TEST_DATABASE_URL` and `DEMO_MODE` in `CODEBASE_CONTEXT.md`
 
 ### Testing Infrastructure
-- [ ] [SETUP] Testing infrastructure (PRD Section 3)
-  - Install pytest + httpx + pytest-asyncio
-  - Create `pyproject.toml` with test configuration
-  - Configure pytest to use local service URLs from `.env`
-  - Create test directory structure: `tests/unit/`, `tests/integration/`, `tests/fixtures/`
-  - Add test scripts to `pyproject.toml`
-  - Write one smoke test hitting the local database to verify connectivity
-  - Confirm: `pytest` runs green against local services
+- [x] [SETUP] Testing infrastructure (PRD Section 3)
+  - Created `pyproject.toml` with pytest + httpx + pytest-asyncio + respx
+  - Configured pytest: `asyncio_mode = "auto"`, `integration` marker
+  - Created test directory structure: `tests/unit/`, `tests/integration/`, `tests/fixtures/`
+  - Created `tests/conftest.py` with async DB session fixtures (transaction rollback cleanup)
+  - Wrote DB connectivity smoke test (`tests/integration/test_db_connectivity.py`)
+  - Confirmed: `pytest` runs green (1 passed in 0.14s)
 - [ ] [SETUP] LLM mock infrastructure (PRD Section 6.2) ← moved from Phase 1
   - `respx` for async HTTP mocking of OpenRouter
   - Response fixtures directory: `tests/fixtures/llm/openrouter_responses/`
