@@ -1,0 +1,73 @@
+Retrieval-Augmented Generation: Architecture and Best Practices
+
+1. Introduction
+
+Retrieval-Augmented Generation (RAG) combines the strengths of large language
+models with external knowledge retrieval. Rather than relying solely on a
+model's parametric knowledge, RAG systems fetch relevant documents from a
+knowledge base before generating a response. This approach reduces
+hallucinations, keeps answers grounded in source material, and enables the
+system to access information beyond its training data cutoff.
+
+2. Core Components
+
+A production RAG pipeline consists of five key stages:
+
+Document Ingestion: Raw documents (PDF, text, HTML) are parsed, cleaned, and
+split into semantically meaningful chunks. Each chunk is typically 256 to 1024
+tokens, with overlap between consecutive chunks to preserve context across
+boundaries.
+
+Embedding Generation: Each chunk is converted into a dense vector
+representation using an embedding model such as OpenAI's text-embedding-3-small
+or Cohere's embed-v3. These vectors capture the semantic meaning of the text in
+a high-dimensional space (typically 1536 dimensions).
+
+Vector Storage: Embeddings are stored in a vector database alongside their
+source text and metadata. PostgreSQL with the pgvector extension is a popular
+choice for teams already using PostgreSQL, as it avoids introducing a separate
+database system while providing efficient approximate nearest neighbor search.
+
+Retrieval: When a user submits a query, it is embedded using the same model,
+and the system performs a similarity search against the stored vectors. The top-k
+most similar chunks (typically 5 to 20) are retrieved as context for the
+language model.
+
+Generation: The retrieved chunks are formatted into a prompt alongside the
+user's question, and a language model generates a response grounded in the
+provided context. The prompt template typically includes instructions to only
+use information from the retrieved context and to indicate when the context
+does not contain sufficient information.
+
+3. Quality Metrics
+
+RAG systems are evaluated on three primary dimensions:
+
+Relevance measures whether the retrieved documents are pertinent to the user's
+query. A relevance score above 0.7 on a 0-to-1 scale indicates good retrieval
+quality.
+
+Faithfulness (or groundedness) measures whether the generated response is
+supported by the retrieved context. A faithfulness score above 0.8 indicates
+the model is not fabricating information beyond what the sources provide.
+
+Correctness measures whether the final answer accurately addresses the user's
+question. This is typically assessed by an LLM-as-judge approach where a
+separate model evaluates the response against a reference answer.
+
+4. Advanced Techniques
+
+Knowledge Graph Enrichment: Entity extraction from documents followed by
+storage in a graph database (such as Neo4j) enables relationship-aware
+retrieval. Graph traversal can surface related entities and concepts that pure
+vector similarity might miss.
+
+Semantic Caching: Caching LLM responses keyed by the semantic similarity of
+queries (rather than exact string matching) can dramatically reduce API costs
+and latency for repeated or similar questions. A similarity threshold of 0.95
+provides a good balance between cache hit rate and answer freshness.
+
+Multi-Agent Orchestration: Complex queries can be decomposed and routed to
+specialized agents, each equipped with different retrieval tools and model
+configurations. An orchestrator agent coordinates the workflow and synthesizes
+the final response.
