@@ -67,7 +67,7 @@ You have a vast library of specialized skills available. **Use them proactively*
 | `chore` | Tooling, workflows, config, dependencies |
 | `style` | Formatting, whitespace, no logic change |
 
-**Scope** = the module, app, or area affected (e.g., `pricing`, `auth`, `db`, `workflows`).
+**Scope** = the module affected: `ingestion`, `retrieval`, `llm`, `agents`, `guardrails`, `memory`, `cache`, `evaluation`, `prompts`, `mcp`, `api`, `db`, `lib`, `config`, `tests`, `workflows`, `docs`.
 
 **Rules:**
 - Subject line max 72 characters.
@@ -150,6 +150,51 @@ chore(workflows): add sprint velocity to resume workflow
 - **Max 300 lines** per source file. If approaching 250, plan to split.
 - **Max 50 lines** per function/method.
 - **Max 200 lines** per class.
+
+## Architecture Rules (Project-Specific)
+
+### Dependency Hierarchy (Enforced)
+```
+lib/ → nothing
+db/ → lib/
+cache/ → db/ (Redis), lib/
+ingestion/ → db/ (PG, Neo4j), lib/
+retrieval/ → db/ (PG, Neo4j), lib/
+llm/ → lib/ (single OpenRouter client)
+guardrails/ → lib/, llm/ (for LLM-as-judge)
+memory/ → db/ (PG, Neo4j), llm/ (for summarization), lib/
+agents/ → retrieval/, llm/, db/, lib/
+evaluation/ → db/, llm/ (for LLM-as-judge), lib/
+prompts/ → db/, lib/
+mcp/ → retrieval/, ingestion/, db/, lib/
+api/ → all modules above
+main.py → api/, db/, mcp/, config
+```
+- **NEVER import upward** in this hierarchy. If `db/` needs something from `llm/`, the design is wrong.
+- **NEVER import across siblings** unless there's an explicit arrow above.
+
+### OpenRouter Rules
+- **ALL LLM and embedding calls** go through `src/llm/openrouter.py` — never call model APIs directly.
+- **ALL config** reads from `src/config.py` Pydantic Settings — never use `os.getenv()` directly.
+- Model names use OpenRouter format: `provider/model-name` (e.g., `openai/gpt-4o`, `anthropic/claude-3.5-sonnet`).
+
+### Python/FastAPI Conventions
+- Use `async def` for all route handlers and DB operations.
+- Use Pydantic v2 models for all request/response schemas.
+- Use `Depends()` for dependency injection (auth, DB sessions, rate limiting).
+- Database sessions via async context manager — never open sessions without cleanup.
+- UUID primary keys for all tables (use `uuid7()` for time-ordered IDs).
+- All timestamps use `datetime.utcnow()` with UTC timezone.
+
+## Public Demo Security
+
+> This project uses OpenRouter (paid API). When deployed publicly (`DEMO_MODE=true`):
+
+- **Rate limiting:** Enforce per-IP and per-API-key rate limits (see PRD Section 8b rate limit column).
+- **Cost caps:** Enforce `DAILY_COST_LIMIT_USD` per user. Return `COST_LIMIT_EXCEEDED` error when exceeded.
+- **Token limits:** Cap max input tokens per request to prevent prompt-stuffing attacks.
+- **API key rotation:** Support multiple API keys via `API_KEYS` env var (comma-separated).
+- **No anonymous access:** All endpoints except `/api/health` require `X-API-Key`.
 
 ## PowerShell Environment
 - **ALWAYS activate the virtual environment before ANY `python` or `pip` command:**

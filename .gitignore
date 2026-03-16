@@ -1,0 +1,59 @@
+# AI Workflow System (proprietary — do not publish)
+.agent/workflows/
+.agent/guides/
+
+# Internal project planning
+docs/progress.md
+docs/*PRD*.md
+docs/*prd*.md
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+*.whl
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+
+# Docker
+*.log
+
+# Alembic
+alembic/versions/__pycache__/
+
+# Neo4j data (local dev)
+neo4j_data/
+
+# Redis data (local dev)
+redis_data/
+
+# Postgres data (local dev)
+pg_data/
