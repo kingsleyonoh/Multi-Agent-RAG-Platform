@@ -55,14 +55,14 @@
 
 Before merging ANY feature to `main`:
 
-1. **All tests pass** — `python -m pytest` / `npm test` / equivalent shows 0 failures
-2. **No console.log / print debugging** — remove all debug output
+1. **All tests pass** — `python -m pytest` shows 0 failures
+2. **No print debugging** — remove all `print()` and debug output, use structlog
 3. **No TODO/FIXME/HACK** — resolve them or create tickets
 4. **Error handling exists** — no unhandled exceptions in user flows
-5. **Types are complete** — no `any` / `Any` types in TypeScript/Python typed code
-6. **Migrations are committed** — all DB changes have migration files
+5. **Types are complete** — no `Any` types, all functions type-hinted
+6. **Migrations committed** — all DB changes have Alembic migration files
 7. **Environment variables documented** — new ones added to `.env.example`
-8. **Linting passes** — code matches project style rules
+8. **Linting passes** — `ruff check .` clean, `mypy src/` passes
 
 ## Code Organization Conventions
 
@@ -73,11 +73,12 @@ Before merging ANY feature to `main`:
 4. Blank line between each group
 
 ### Naming Conventions
-- **Files:** `snake_case.py` / `kebab-case.ts` (follow project convention)
+- **Files:** `snake_case.py`
 - **Classes:** `PascalCase`
-- **Functions/Methods:** `snake_case` (Python) / `camelCase` (JS/TS)
+- **Functions/Methods:** `snake_case`
 - **Constants:** `UPPER_SNAKE_CASE`
-- **Private:** Prefix with `_` (Python)
+- **Private:** Prefix with `_`
+- **Pydantic models:** `{Entity}Create`, `{Entity}Response`, `{Entity}Update`
 
 ### Project Structure
 - Follow the structure defined in `CODEBASE_CONTEXT.md`
@@ -85,10 +86,11 @@ Before merging ANY feature to `main`:
 - If unsure where something belongs, check `CODEBASE_CONTEXT.md` or ask
 
 ## Logging Standards
-- Use structured logging (JSON format in production)
+- Use `structlog` for all logging — JSON output to stdout
 - Log levels: DEBUG (dev only), INFO (normal events), WARNING (recoverable), ERROR (failures), CRITICAL (system down)
 - Include context: user_id, request_id, module name
-- NEVER log sensitive data (passwords, tokens, PII)
+- NEVER log sensitive data (passwords, tokens, PII, API keys)
+- All LLM calls must log: model, tokens_in, tokens_out, cost_usd, latency_ms
 
 ## Error Response Standards
 - Consistent error format across all endpoints
