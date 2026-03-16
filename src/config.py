@@ -105,6 +105,24 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------
     TEST_DATABASE_URL: str | None = None
 
+    # ------------------------------------------------------------------
+    # Computed environment helpers
+    # ------------------------------------------------------------------
+    @property
+    def is_production(self) -> bool:
+        """True when running in production environment."""
+        return self.ENV == "production"
+
+    @property
+    def is_testing(self) -> bool:
+        """True when running in test environment."""
+        return self.ENV == "testing"
+
+    @property
+    def debug(self) -> bool:
+        """True when running in development (enables verbose logging, etc.)."""
+        return self.ENV == "development"
+
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",

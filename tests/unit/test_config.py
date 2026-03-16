@@ -223,3 +223,31 @@ class TestValidConfig:
         assert s.DATABASE_URL == VALID_ENV["DATABASE_URL"]
         assert s.OPENROUTER_API_KEY == "sk-or-v1-test-key"
         assert s.CHUNK_SIZE == 512
+
+
+class TestEnvironmentProfiles:
+    """Computed properties differentiate development / production / testing."""
+
+    def test_is_production_true_when_env_production(self):
+        s = Settings(**{**VALID_ENV, "ENV": "production"})
+        assert s.is_production is True
+
+    def test_is_production_false_when_env_development(self):
+        s = Settings(**VALID_ENV)  # default ENV=development
+        assert s.is_production is False
+
+    def test_is_testing_true_when_env_testing(self):
+        s = Settings(**{**VALID_ENV, "ENV": "testing"})
+        assert s.is_testing is True
+
+    def test_is_testing_false_when_env_production(self):
+        s = Settings(**{**VALID_ENV, "ENV": "production"})
+        assert s.is_testing is False
+
+    def test_debug_true_when_env_development(self):
+        s = Settings(**VALID_ENV)  # default ENV=development
+        assert s.debug is True
+
+    def test_debug_false_when_env_production(self):
+        s = Settings(**{**VALID_ENV, "ENV": "production"})
+        assert s.debug is False
