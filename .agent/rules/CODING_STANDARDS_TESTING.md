@@ -92,14 +92,14 @@ When deciding how to test a service, follow this order:
 3. **Mock** (last resort) — only when options 1 and 2 are impossible
 
 ### Test LIVE (Never Mock)
-- Your database (local Supabase, local Postgres) — validates schema, column names, constraints, query behavior
+- Your database (local PostgreSQL + pgvector, local Neo4j, local Redis via Docker) — validates schema, column names, constraints, query behavior
 - Your own API endpoints — call the actual route, not a stub
 - Your own server actions / business logic — test the real function
-- File storage you control (local Supabase Storage, local filesystem)
+- File storage you control (local filesystem)
 
 ### Mock ONLY These
-- Third-party payment APIs (Stripe charges money)
-- Email/SMS delivery (SendGrid/Twilio sends messages)
+- OpenRouter LLM API (costs money per request)
+- Third-party email/notification APIs (BetterStack, etc.)
 - Rate-limited external APIs you don't control
 - Services with irreversible side effects
 - Cloud-only services with no local emulator AND no dev tier
