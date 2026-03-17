@@ -72,10 +72,13 @@
   - Wired into `main.py` lifespan (startup/shutdown)
   - 5 unit tests + 3 integration tests (TDD)
   - Verified: 56 total tests pass (8 postgres + 48 pre-existing)
-- [ ] [FEATURE] Neo4j driver wrapper — `src/db/neo4j.py` (PRD Section 4.7, 9)
-  - Bolt connection via `neo4j` Python driver
-  - Constraint creation on app startup
-  - Graceful degradation on connection failure
+- [x] [FEATURE] Neo4j driver wrapper — `src/db/neo4j.py` (PRD Section 4.7, 9)
+  - Bolt connection via `neo4j` Python driver (AsyncDriver, cached by URI)
+  - Constraint creation on app startup (`Entity.id` uniqueness)
+  - Graceful degradation on connection failure (`verify_connectivity` returns False)
+  - Wired into `main.py` lifespan (startup/shutdown)
+  - 4 unit tests + 3 integration tests (TDD)
+  - Verified: 63 total tests pass (7 neo4j + 8 postgres + 48 pre-existing)
 - [ ] [FEATURE] Redis client — `src/db/redis.py` (PRD Section 3, 9)
   - Redis connection for semantic cache + session store
   - Health check method
