@@ -16,6 +16,7 @@ from typing import AsyncIterator
 from fastapi import FastAPI
 
 from src.config import get_settings
+from src.db.postgres import dispose_engine, get_engine, init_pgvector
 
 
 @asynccontextmanager
@@ -24,14 +25,19 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     Startup: initialise database pools, caches, etc.
     Shutdown: close connections gracefully.
-
-    Concrete initialisation will be added as each module is implemented.
     """
+    settings = get_settings()
+
     # --- Startup ---
-    # Future: DB pools, Neo4j driver, Redis connection
+    engine = get_engine(settings.DATABASE_URL)
+    await init_pgvector(engine)
+    app.state.db_engine = engine
+
     yield
+
     # --- Shutdown ---
-    # Future: close pools, flush caches
+    await dispose_engine(engine)
+    # Future: close Neo4j driver, Redis connection
 
 
 def create_app() -> FastAPI:
