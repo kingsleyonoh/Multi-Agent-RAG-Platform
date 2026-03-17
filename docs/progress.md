@@ -64,10 +64,14 @@
 ## Phase 1: Core RAG Pipeline
 
 ### Database Layer
-- [ ] [FEATURE] Database connection module — `src/db/postgres.py` (PRD Section 4, 9)
-  - Async SQLAlchemy engine + session factory
-  - pgvector extension initialization
-  - Connection pool configuration
+- [x] [FEATURE] Database connection module — `src/db/postgres.py` (PRD Section 4, 9)
+  - Async SQLAlchemy engine + session factory (`get_engine`, `get_session_factory`)
+  - pgvector extension initialization (`init_pgvector`)
+  - Connection pool configuration (pool_size=5, max_overflow=10, pool_recycle=3600)
+  - Graceful engine disposal + cache cleanup (`dispose_engine`)
+  - Wired into `main.py` lifespan (startup/shutdown)
+  - 5 unit tests + 3 integration tests (TDD)
+  - Verified: 56 total tests pass (8 postgres + 48 pre-existing)
 - [ ] [FEATURE] Neo4j driver wrapper — `src/db/neo4j.py` (PRD Section 4.7, 9)
   - Bolt connection via `neo4j` Python driver
   - Constraint creation on app startup
