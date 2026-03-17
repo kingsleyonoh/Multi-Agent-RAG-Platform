@@ -16,6 +16,12 @@ from typing import AsyncIterator
 from fastapi import FastAPI
 
 from src.config import get_settings
+from src.db.neo4j import (
+    close_driver as close_neo4j,
+    get_driver as get_neo4j_driver,
+    init_constraints as init_neo4j_constraints,
+    verify_connectivity as verify_neo4j,
+)
 from src.db.postgres import dispose_engine, get_engine, init_pgvector
 
 
@@ -33,11 +39,20 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await init_pgvector(engine)
     app.state.db_engine = engine
 
+    neo4j_driver = get_neo4j_driver(
+        settings.NEO4J_URI, settings.NEO4J_USER, settings.NEO4J_PASSWORD,
+    )
+    neo4j_ok = await verify_neo4j(neo4j_driver)
+    if neo4j_ok:
+        await init_neo4j_constraints(neo4j_driver)
+    app.state.neo4j_driver = neo4j_driver
+
     yield
 
     # --- Shutdown ---
+    await close_neo4j(neo4j_driver)
     await dispose_engine(engine)
-    # Future: close Neo4j driver, Redis connection
+    # Future: close Redis connection
 
 
 def create_app() -> FastAPI:
