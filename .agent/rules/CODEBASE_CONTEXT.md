@@ -111,6 +111,9 @@ multi-agent-rag-platform/
 
 ## Commands
 
+> **IMPORTANT:** Before running any command, check if the venv is activated (prompt shows `(venv)`).
+> If not, activate it first: `.\venv\Scripts\activate` (PowerShell/Windows).
+
 | Action | Command |
 |--------|---------|
 | Dev server | `uvicorn src.main:app --reload` |
@@ -144,6 +147,8 @@ multi-agent-rag-platform/
 | DB clients | `src/db/postgres.py` | Async SQLAlchemy engine, session factory, pgvector init |
 | DB clients | `src/db/neo4j.py` | Neo4j driver, constraint creation, graceful degradation |
 | DB clients | `src/db/redis.py` | Async Redis client (cached), health check, graceful degradation |
+| DB models | `src/db/models.py` | SQLAlchemy ORM models (7 tables), DeclarativeBase for migrations |
+| DB migrations | `src/db/migrations/` | Alembic async config, initial schema (all 7 PRD tables + pgvector) |
 | Logging | `src/lib/logger.py` | structlog configuration, JSON output, request correlation |
 | Utilities | `src/lib/utils.py` | Content hashing, common helpers |
 | Error handling | `src/api/middleware/errors.py` | Centralized error types, consistent error format |
