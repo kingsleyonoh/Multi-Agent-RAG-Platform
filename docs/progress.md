@@ -87,15 +87,13 @@
   - Added `TEST_REDIS_URL` to `config.py`
   - 6 unit tests + 1 integration smoke test (TDD)
   - Verified: 62 total tests pass (6 redis + 56 pre-existing)
-- [ ] [FEATURE] Alembic migration setup (PRD Section 10)
-  - `alembic.ini` configuration
-  - Initial migration: `documents` table (PRD Section 4.1)
-  - Migration: `chunks` table with pgvector column (PRD Section 4.2)
-  - Migration: `conversations` table (PRD Section 4.3)
-  - Migration: `messages` table (PRD Section 4.3)
-  - Migration: `prompts` table (PRD Section 4.4)
-  - Migration: `evaluations` table (PRD Section 4.5)
-  - Migration: `semantic_cache` table (PRD Section 4.6)
+- [x] [FEATURE] Alembic migration setup (PRD Section 10)
+  - Added `alembic>=1.14.0` and `pgvector>=0.3.0` to `pyproject.toml`
+  - Created `src/db/models.py` with 7 SQLAlchemy ORM models (Document, Chunk, Conversation, Message, Prompt, Evaluation, SemanticCache)
+  - `alembic.ini` + async `env.py` configured (reads DATABASE_URL from Settings)
+  - Initial migration `001_initial_schema.py`: all 7 tables + pgvector extension + B-tree and ivfflat indexes
+  - 26 unit tests for model schema validation (TDD)
+  - Verified: 88 total tests pass (26 models + 62 pre-existing)
 
 ### Shared Utilities
 - [ ] [FEATURE] Structured logging — `src/lib/logger.py` (PRD Section 10b)
