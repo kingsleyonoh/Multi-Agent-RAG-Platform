@@ -105,6 +105,7 @@ multi-agent-rag-platform/
 | `API_KEYS` | API key(s) for auth middleware | Manual config |
 | `DAILY_COST_LIMIT_USD` | Per-day LLM spend cap | Manual config |
 | `TEST_DATABASE_URL` | PostgreSQL connection for pytest test runs | `.env` (same as `DATABASE_URL` locally) |
+| `TEST_REDIS_URL` | Redis connection for pytest integration tests | `.env` (same as `REDIS_URL` locally) |
 | `MOCK_LLM` | Use fixture responses instead of live APIs | Test env |
 | `DEMO_MODE` | Enable public demo security protections | Manual config |
 
@@ -142,7 +143,7 @@ multi-agent-rag-platform/
 | Config | `src/config.py` | Pydantic Settings model, all env vars, defaults |
 | DB clients | `src/db/postgres.py` | Async SQLAlchemy engine, session factory, pgvector init |
 | DB clients | `src/db/neo4j.py` | Neo4j driver, constraint creation, graceful degradation |
-| DB clients | `src/db/redis.py` | Redis connection, health check |
+| DB clients | `src/db/redis.py` | Async Redis client (cached), health check, graceful degradation |
 | Logging | `src/lib/logger.py` | structlog configuration, JSON output, request correlation |
 | Utilities | `src/lib/utils.py` | Content hashing, common helpers |
 | Error handling | `src/api/middleware/errors.py` | Centralized error types, consistent error format |
