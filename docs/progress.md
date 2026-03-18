@@ -79,9 +79,14 @@
   - Wired into `main.py` lifespan (startup/shutdown)
   - 4 unit tests + 3 integration tests (TDD)
   - Verified: 63 total tests pass (7 neo4j + 8 postgres + 48 pre-existing)
-- [ ] [FEATURE] Redis client — `src/db/redis.py` (PRD Section 3, 9)
-  - Redis connection for semantic cache + session store
-  - Health check method
+- [x] [FEATURE] Redis client — `src/db/redis.py` (PRD Section 3, 9)
+  - Async client via `redis.asyncio.Redis` (cached by URL, `decode_responses=True`)
+  - Health check with graceful degradation (`ping` returns `True`/`False`, never raises)
+  - Client disposal + cache eviction (`close_client`)
+  - Added `redis[hiredis]>=5.0.0` to `pyproject.toml`
+  - Added `TEST_REDIS_URL` to `config.py`
+  - 6 unit tests + 1 integration smoke test (TDD)
+  - Verified: 62 total tests pass (6 redis + 56 pre-existing)
 - [ ] [FEATURE] Alembic migration setup (PRD Section 10)
   - `alembic.ini` configuration
   - Initial migration: `documents` table (PRD Section 4.1)

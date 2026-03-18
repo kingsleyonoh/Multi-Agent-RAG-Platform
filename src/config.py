@@ -104,6 +104,7 @@ class Settings(BaseSettings):
     # Test
     # ------------------------------------------------------------------
     TEST_DATABASE_URL: str | None = None
+    TEST_REDIS_URL: str | None = None
 
     # ------------------------------------------------------------------
     # Computed environment helpers
