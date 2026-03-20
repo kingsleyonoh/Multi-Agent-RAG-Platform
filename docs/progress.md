@@ -96,11 +96,15 @@
   - Verified: 88 total tests pass (26 models + 62 pre-existing)
 
 ### Shared Utilities
-- [ ] [FEATURE] Structured logging — `src/lib/logger.py` (PRD Section 10b)
+- [x] [FEATURE] Structured logging — `src/lib/logger.py` (PRD Section 10b)
   - structlog with JSON output to stdout
-  - Request ID correlation
-  - Module name context
-  - [ ] [TEST] Unit tests for logger output format and context propagation
+  - Request ID correlation (via `bind_context` / `clear_context` using contextvars)
+  - Module name context (via `get_logger(__name__)`)
+  - `setup_logging()` configures JSON or console renderer, bridges stdlib logging
+  - Added `structlog>=24.1.0` to `pyproject.toml`
+  - [x] [TEST] Unit tests for logger output format and context propagation
+    - 9 TDD tests: bound logger, module context, JSON format, console format, bind/clear context, log levels, setup
+    - Verified: 98 total tests pass (9 logger + 89 pre-existing)
 - [ ] [FEATURE] Utility functions — `src/lib/utils.py` (PRD Section 9)
   - SHA-256 content hashing for dedup
   - Common helpers
