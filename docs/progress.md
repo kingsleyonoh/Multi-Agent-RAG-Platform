@@ -147,10 +147,14 @@
   - [x] [TEST] Unit test for counter logic, window expiry, Redis interaction
     - 7 TDD tests: under limit, over limit 429, headers present, health exempt, Redis fail-open, per-endpoint limits, key isolation
     - Verified: 141 passed, 1 skipped (7 rate limit + 134 pre-existing)
-- [ ] [FEATURE] Error handling middleware — `src/api/middleware/errors.py` (PRD Section 8b)
+- [x] [FEATURE] Error handling middleware — `src/api/middleware/errors.py` (PRD Section 8b)
   - Consistent error format: `{ error: { code, message, details } }`
   - Never leak stack traces in production
-  - [ ] [TEST] Unit test for error format, stack trace suppression, HTTP status codes
+  - FastAPI exception handlers for HTTPException, RequestValidationError + catch-all middleware
+  - Auth/rate-limit pre-shaped errors unwrapped; status codes mapped to UPPER_SNAKE codes
+  - [x] [TEST] Unit test for error format, stack trace suppression, HTTP status codes
+    - 8 TDD tests: PRD format, status preservation, auth unwrap, validation 422, dev traceback, prod suppression, consistency, success passthrough
+    - Verified: 149 passed, 1 skipped (8 error handling + 141 pre-existing)
 - [ ] [FEATURE] Health endpoint — `GET /api/health` (PRD Section 8b, 10b)
   - PostgreSQL connectivity check + pgvector extension loaded
   - Neo4j connectivity check

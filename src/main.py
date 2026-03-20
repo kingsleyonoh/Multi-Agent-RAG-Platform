@@ -15,6 +15,7 @@ from typing import AsyncIterator
 
 from fastapi import FastAPI
 
+from src.api.middleware.errors import register_error_handlers
 from src.api.middleware.rate_limit import RateLimitMiddleware
 from src.api.middleware.request_id import RequestIDMiddleware
 from src.config import get_settings
@@ -74,6 +75,9 @@ def create_app() -> FastAPI:
     # --- Middleware (outermost first) ---
     app.add_middleware(RequestIDMiddleware)
     app.add_middleware(RateLimitMiddleware)
+
+    # --- Exception handlers ---
+    register_error_handlers(app, env=settings.ENV)
 
     # ------------------------------------------------------------------
     # Health endpoint (always available, no auth)
