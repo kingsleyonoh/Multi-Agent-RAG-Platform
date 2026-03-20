@@ -119,10 +119,15 @@
     - Verified: 119 passed, 1 skipped (120 total = 15 utils + 105 pre-existing)
 
 ### API Foundation
-- [ ] [FEATURE] Request ID middleware (PRD Section 10b, implied)
+- [x] [FEATURE] Request ID middleware (PRD Section 10b, implied)
   - Generate UUID per request, attach to structlog context
   - Pass through to all log entries for correlation
-  - [ ] [TEST] Unit test for UUID generation and structlog context binding
+  - Honours client-provided `X-Request-ID` for distributed tracing
+  - Returns `X-Request-ID` response header
+  - Registered in `src/main.py` via `app.add_middleware(RequestIDMiddleware)`
+  - [x] [TEST] Unit test for UUID generation and structlog context binding
+    - 7 TDD tests: header presence, UUID4 validity, uniqueness, client-provided ID, empty/whitespace edge cases, context cleanup
+    - Verified: 126 passed, 1 skipped (7 request ID + 119 pre-existing)
 - [ ] [FEATURE] Auth middleware — `src/api/middleware/auth.py` (PRD Section 8b)
   - API key validation via `X-API-Key` header
   - User identification via `X-User-Id` header

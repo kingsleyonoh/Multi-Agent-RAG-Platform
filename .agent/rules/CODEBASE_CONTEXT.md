@@ -159,6 +159,7 @@ multi-agent-rag-platform/
 | DB models | `src/db/models.py` | SQLAlchemy ORM models (7 tables), DeclarativeBase for migrations |
 | DB migrations | `src/db/migrations/` | Alembic async config, initial schema (all 7 PRD tables + pgvector) |
 | Logging | `src/lib/logger.py` | structlog configuration, JSON output, request correlation |
+| Request ID | `src/api/middleware/request_id.py` | UUID4 per request, structlog context binding, X-Request-ID header |
 | Utilities | `src/lib/utils.py` | Content hashing, common helpers |
 | Error handling | `src/api/middleware/errors.py` | Centralized error types, consistent error format |
 | Auth | `src/api/middleware/auth.py` | API key validation, user ID extraction |

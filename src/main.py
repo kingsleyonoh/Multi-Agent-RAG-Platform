@@ -15,6 +15,7 @@ from typing import AsyncIterator
 
 from fastapi import FastAPI
 
+from src.api.middleware.request_id import RequestIDMiddleware
 from src.config import get_settings
 from src.db.neo4j import (
     close_driver as close_neo4j,
@@ -68,6 +69,9 @@ def create_app() -> FastAPI:
         version="0.1.0",
         lifespan=lifespan,
     )
+
+    # --- Middleware (outermost first) ---
+    app.add_middleware(RequestIDMiddleware)
 
     # ------------------------------------------------------------------
     # Health endpoint (always available, no auth)
