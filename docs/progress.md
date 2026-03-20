@@ -58,6 +58,11 @@
   - `.env.example` annotated with `# PROD:` notes for production values
   - 6 TDD tests for computed properties
   - Verified: 48 total tests pass (6 env + 32 config + 5 main + 4 LLM mock + 1 DB)
+- [ ] [FEATURE] Graceful shutdown — `src/main.py` lifespan (PRD Section 10, implied)
+  - Signal handling (SIGTERM/SIGINT) for clean container stops
+  - Connection draining for in-flight requests
+  - Ordered resource disposal (Redis → Neo4j → PostgreSQL)
+  - [ ] [TEST] Unit test for shutdown sequence and resource cleanup
 
 ---
 
@@ -105,24 +110,31 @@
   - [x] [TEST] Unit tests for logger output format and context propagation
     - 9 TDD tests: bound logger, module context, JSON format, console format, bind/clear context, log levels, setup
     - Verified: 98 total tests pass (9 logger + 89 pre-existing)
-- [ ] [FEATURE] Utility functions — `src/lib/utils.py` (PRD Section 9)
-  - SHA-256 content hashing for dedup
-  - Common helpers
-  - [ ] [TEST] Unit tests for hashing and utility functions
+- [x] [FEATURE] Utility functions — `src/lib/utils.py` (PRD Section 9)
+  - `content_hash(text)` — SHA-256 hex digest with CRLF normalisation for cross-platform dedup
+  - `utc_now()` — timezone-aware UTC datetime (replaces naïve `datetime.utcnow()`)
+  - `truncate_text(text, max_len=200)` — char-limited truncation with `...` suffix
+  - [x] [TEST] Unit tests for hashing and utility functions
+    - 15 TDD tests: hex format, determinism, known digest, unicode, whitespace, CRLF, UTC tz, truncation boundaries
+    - Verified: 119 passed, 1 skipped (120 total = 15 utils + 105 pre-existing)
 
 ### API Foundation
 - [ ] [FEATURE] Request ID middleware (PRD Section 10b, implied)
   - Generate UUID per request, attach to structlog context
   - Pass through to all log entries for correlation
+  - [ ] [TEST] Unit test for UUID generation and structlog context binding
 - [ ] [FEATURE] Auth middleware — `src/api/middleware/auth.py` (PRD Section 8b)
   - API key validation via `X-API-Key` header
   - User identification via `X-User-Id` header
+  - [ ] [TEST] Unit test for API key validation, missing header rejection, user ID extraction
 - [ ] [FEATURE] Rate limiting middleware — `src/api/middleware/rate_limit.py` (PRD Section 8b)
   - Per-endpoint rate limits (see rate limit column in API table)
   - Redis-backed counter
+  - [ ] [TEST] Unit test for counter logic, window expiry, Redis interaction
 - [ ] [FEATURE] Error handling middleware — `src/api/middleware/errors.py` (PRD Section 8b)
   - Consistent error format: `{ error: { code, message, details } }`
   - Never leak stack traces in production
+  - [ ] [TEST] Unit test for error format, stack trace suppression, HTTP status codes
 - [ ] [FEATURE] Health endpoint — `GET /api/health` (PRD Section 8b, 10b)
   - PostgreSQL connectivity check + pgvector extension loaded
   - Neo4j connectivity check
@@ -138,7 +150,7 @@
   - Scanned image warning (no OCR)
   - [ ] [TEST] Unit test for PDF extractor
 - [ ] [FEATURE] Markdown extractor — `src/ingestion/extractors/markdown.py` (PRD Section 5.1)
-  - Markdown (.md) file passthrough
+  - Markdown (.md) file passthrough with frontmatter stripping
   - [ ] [TEST] Unit test for Markdown extractor
 - [ ] [FEATURE] URL extractor — `src/ingestion/extractors/url.py` (PRD Section 5.1)
   - URL scraping via `httpx` + `BeautifulSoup`
@@ -158,6 +170,7 @@
 - [ ] [FEATURE] Cursor-based pagination utility (PRD Section 8b)
   - Reusable cursor + limit pagination for all list endpoints
   - Default page size 25, max 100
+  - [ ] [TEST] Unit test for cursor encoding/decoding, limit capping, edge cases
 - [ ] [FEATURE] Document API endpoints (PRD Section 8b)
   - `POST /api/documents` — file upload → ingest
   - `POST /api/documents/url` — URL → ingest
@@ -181,8 +194,9 @@
   - OpenAI-compatible REST client for `/api/v1/chat/completions`
   - Authentication via `Authorization: Bearer` + `X-Title` + `HTTP-Referer`
   - Error handling: 429 → backoff, 5xx → fallback, 402 → COST_LIMIT_EXCEEDED, timeout → downgrade
-- [ ] [FEATURE] Basic chat endpoint — `POST /api/chat/sync` (PRD Section 8b)
-  - Query → retrieve context → LLM call → response
+- [ ] [FEATURE] Chat API route file — `src/api/chat.py` (PRD Section 8b, 9)
+  - Register router with FastAPI app
+  - `POST /api/chat/sync` — Query → retrieve context → LLM call → response
   - Return: `{ response, sources, model_used, cost }`
 
 ---
@@ -356,7 +370,7 @@
   - Run all metrics after each RAG response
   - Store scores in `evaluations` table
   - Flag responses below threshold (`EVAL_MIN_THRESHOLD`, default 0.7)
-- [ ] [FEATURE] Metrics API endpoints (PRD Section 8b)
+- [ ] [FEATURE] Metrics API route file — `src/api/metrics.py` (PRD Section 8b, 9)
   - `GET /api/metrics/cost` — total cost, by model, by day
   - `GET /api/metrics/quality` — avg relevance, avg faithfulness, by model
 
