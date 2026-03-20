@@ -15,6 +15,7 @@ from typing import AsyncIterator
 
 from fastapi import FastAPI
 
+from src.api.middleware.rate_limit import RateLimitMiddleware
 from src.api.middleware.request_id import RequestIDMiddleware
 from src.config import get_settings
 from src.db.neo4j import (
@@ -72,6 +73,7 @@ def create_app() -> FastAPI:
 
     # --- Middleware (outermost first) ---
     app.add_middleware(RequestIDMiddleware)
+    app.add_middleware(RateLimitMiddleware)
 
     # ------------------------------------------------------------------
     # Health endpoint (always available, no auth)

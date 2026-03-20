@@ -136,10 +136,17 @@
   - [x] [TEST] Unit test for API key validation, missing header rejection, user ID extraction
     - 8 TDD tests: valid key, missing header 401, error code, invalid key 403, error format, user ID extraction, default anonymous, multi-key support
     - Verified: 134 passed, 1 skipped (8 auth + 126 pre-existing)
-- [ ] [FEATURE] Rate limiting middleware — `src/api/middleware/rate_limit.py` (PRD Section 8b)
-  - Per-endpoint rate limits (see rate limit column in API table)
-  - Redis-backed counter
-  - [ ] [TEST] Unit test for counter logic, window expiry, Redis interaction
+- [x] [FEATURE] Rate limiting middleware — `src/api/middleware/rate_limit.py` (PRD Section 8b)
+  - Fixed-window Redis counter (`INCR` + `EXPIRE`) per api_key:path:minute
+  - Per-endpoint limits from PRD §8b API table (10–200/min)
+  - Fail-open on Redis errors (graceful degradation)
+  - Response headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`
+  - 429 `RATE_LIMIT_EXCEEDED` with PRD error format + `Retry-After` header
+  - `/api/health` exempt
+  - Registered in `src/main.py` via `app.add_middleware(RateLimitMiddleware)`
+  - [x] [TEST] Unit test for counter logic, window expiry, Redis interaction
+    - 7 TDD tests: under limit, over limit 429, headers present, health exempt, Redis fail-open, per-endpoint limits, key isolation
+    - Verified: 141 passed, 1 skipped (7 rate limit + 134 pre-existing)
 - [ ] [FEATURE] Error handling middleware — `src/api/middleware/errors.py` (PRD Section 8b)
   - Consistent error format: `{ error: { code, message, details } }`
   - Never leak stack traces in production
