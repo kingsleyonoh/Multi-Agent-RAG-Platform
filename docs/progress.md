@@ -128,10 +128,14 @@
   - [x] [TEST] Unit test for UUID generation and structlog context binding
     - 7 TDD tests: header presence, UUID4 validity, uniqueness, client-provided ID, empty/whitespace edge cases, context cleanup
     - Verified: 126 passed, 1 skipped (7 request ID + 119 pre-existing)
-- [ ] [FEATURE] Auth middleware — `src/api/middleware/auth.py` (PRD Section 8b)
-  - API key validation via `X-API-Key` header
-  - User identification via `X-User-Id` header
-  - [ ] [TEST] Unit test for API key validation, missing header rejection, user ID extraction
+- [x] [FEATURE] Auth middleware — `src/api/middleware/auth.py` (PRD Section 8b)
+  - Implemented as FastAPI dependency (`require_api_key`) — per-route control, health stays public
+  - API key validation via `X-API-Key` header against comma-split `API_KEYS` config
+  - User identification via `X-User-Id` header (defaults to `"anonymous"`)
+  - PRD error format: `{ error: { code, message } }` — 401 `MISSING_API_KEY`, 403 `INVALID_API_KEY`
+  - [x] [TEST] Unit test for API key validation, missing header rejection, user ID extraction
+    - 8 TDD tests: valid key, missing header 401, error code, invalid key 403, error format, user ID extraction, default anonymous, multi-key support
+    - Verified: 134 passed, 1 skipped (8 auth + 126 pre-existing)
 - [ ] [FEATURE] Rate limiting middleware — `src/api/middleware/rate_limit.py` (PRD Section 8b)
   - Per-endpoint rate limits (see rate limit column in API table)
   - Redis-backed counter
