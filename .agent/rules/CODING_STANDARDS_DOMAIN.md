@@ -142,3 +142,34 @@ Before merging ANY feature to `main`:
 - Include: error code, human-readable message, timestamp
 - Never leak stack traces to clients in production
 - Log full error details server-side
+
+## Server-Side Performance Rules
+
+### Deduplicate Expensive Calls
+If multiple functions on the same request path call the same expensive operation (auth check, config fetch, external API), extract it into a shared cached helper (e.g., request-scoped cache, singleton per request). Never let each function create its own call — N actions × M calls = latency multiplication.
+
+### Parallel by Default
+Independent operations (DB queries, API calls, file reads) MUST run concurrently (`asyncio.gather`, etc.). Sequential execution is only for data-dependent chains where one result feeds the next.
+
+### Wire It or Delete It
+If you create a utility, middleware, or proxy file, connect it to the framework entry point in the same commit. Unwired code creates false confidence — the feature "exists" but doesn't execute.
+
+### Compound Load Audit
+After implementing 5+ operations callable from a single entry point (page render, API endpoint, CLI command), audit total I/O calls. Features built incrementally work in isolation but compound into latency regressions that correctness tests never catch.
+
+### Prefer Joins Over Multiple Queries
+If the ORM/DB supports joins or eager loading, use them. N separate queries for N related tables is a sequential waterfall — one joined query is one round-trip. This includes any pattern where you fetch IDs from one table then loop to fetch details from another.
+
+### Pin Compute to Data Region
+Serverless functions must run in the same region as the database. Unmatched regions add 50-100ms per query. Set this in deployment config during Phase 0 setup — not after performance problems surface.
+
+## Code Structure Rules
+
+### Thin Entry Points
+Route handlers, server actions, CLI commands, and event handlers must stay thin — validate input, call a service/domain function, format the response. Extract business logic, side effects (notifications, logging, external calls), and data access into a separate layer. Entry points that mix multiple concerns become unmaintainable and untestable.
+
+### Single State Mechanism Per Feature
+Multi-step flows (wizards, forms, onboarding) must use ONE state management approach. Mixing persistence mechanisms (e.g., browser storage + in-memory cache + framework state + background sync) creates maintenance burden and race conditions. Pick one, stick with it.
+
+### Modularity Awareness
+Before adding code to any file, assess its current structure. Files should have a single clear responsibility. When a file's scope grows to cover multiple concerns, split by responsibility into separate modules — don't wait for a modularity audit. The project's limits (250 lines/file, 40 lines/function, 180 lines/class from `/check-modularity`) are guardrails, not targets.

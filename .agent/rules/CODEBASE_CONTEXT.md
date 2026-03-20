@@ -3,7 +3,7 @@
 > Primary source of truth for all workflows. Updated by `/sync-context`.
 >
 > Last updated: 2026-03-16
-> Template synced: 2026-03-16
+> Template synced: 2026-03-20
 
 ## Tech Stack
 
@@ -134,6 +134,15 @@ multi-agent-rag-platform/
 - All LLM calls go through `src/llm/openrouter.py` — never call providers directly
 - Config via `src/config.py` Pydantic Settings — never read env vars directly
 - Dependency hierarchy: see `CODING_STANDARDS_DOMAIN.md` → Architecture Rules
+
+## Gotchas & Lessons Learned
+
+> Discovered during implementation. Added automatically by `/implement-next` Step 9.3.
+> These prevent the same mistakes from being repeated across sessions.
+
+| Date | Area | Gotcha | Discovered In |
+|------|------|--------|---------------|
+| | | | |
 
 ## Shared Foundation (MUST READ before any implementation)
 
