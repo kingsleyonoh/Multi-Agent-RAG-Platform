@@ -1,6 +1,6 @@
 """Chat API route.
 
-Provides synchronous chat completion with RAG context retrieval.
+Provides synchronous and streaming chat completion with RAG context retrieval.
 
 Usage::
 
@@ -12,7 +12,10 @@ from __future__ import annotations
 
 import structlog
 from fastapi import APIRouter
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
+
+from src.llm.streaming import format_sse, stream_chat_completion
 
 logger = structlog.get_logger(__name__)
 
@@ -64,3 +67,32 @@ async def sync_chat(body: ChatRequest) -> ChatResponse:
         model_used=body.model or "openai/gpt-4o-mini",
         cost=0.0,
     )
+
+
+@router.post("")
+async def streaming_chat(body: ChatRequest) -> StreamingResponse:
+    """SSE streaming chat endpoint.
+
+    Streams token-by-token responses as Server-Sent Events.
+    """
+    logger.info("chat_stream_requested", query_len=len(body.query), model=body.model)
+
+    # Inline settings for now — will be replaced by DI
+    class _InlineSettings:
+        OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+        OPENROUTER_API_KEY = "placeholder"
+        OPENROUTER_APP_NAME = "multi-agent-rag-platform"
+
+    async def _event_generator():
+        async for event in stream_chat_completion(
+            messages=[{"role": "user", "content": body.query}],
+            model=body.model or "openai/gpt-4o-mini",
+            settings=_InlineSettings(),
+        ):
+            yield format_sse(event)
+
+    return StreamingResponse(
+        _event_generator(),
+        media_type="text/event-stream",
+    )
+
