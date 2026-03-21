@@ -278,62 +278,62 @@
 ## Phase 3: Guardrails + Memory
 
 ### Input Guardrails
-- [ ] [FEATURE] Prompt injection detection — `src/guardrails/injection.py` (PRD Section 5.5)
+- [x] [FEATURE] Prompt injection detection — `src/guardrails/injection.py` (PRD Section 5.5)
   - Pattern matching for common injection patterns
   - Score 0.0–1.0, block if > 0.8 (`GUARDRAIL_INJECTION_THRESHOLD`)
-- [ ] [FEATURE] PII detection — `src/guardrails/pii.py` (PRD Section 5.5)
+- [x] [FEATURE] PII detection — `src/guardrails/pii.py` (PRD Section 5.5)
   - Regex scan for SSN, credit card, phone, email
   - Configurable mode: flag / block / redact (`GUARDRAIL_PII_MODE`)
-- [ ] [FEATURE] Topic policy — `src/guardrails/pipeline.py` (PRD Section 5.5)
+- [x] [FEATURE] Topic policy — `src/guardrails/pipeline.py` (PRD Section 5.5)
   - Configurable denied topics blocklist
   - Token budget check: reject if estimated cost exceeds session budget
 
 ### Output Guardrails
-- [ ] [FEATURE] Hallucination detection — `src/guardrails/hallucination.py` (PRD Section 5.5)
+- [x] [FEATURE] Hallucination detection — `src/guardrails/hallucination.py` (PRD Section 5.5)
   - Compare LLM response against source chunks
   - Flag ungrounded claims
-- [ ] [FEATURE] Content safety checking — `src/guardrails/content_safety.py` (PRD Section 5.5)
+- [x] [FEATURE] Content safety checking — `src/guardrails/content_safety.py` (PRD Section 5.5)
   - Check for hate, violence, sexual content
   - Keyword patterns + LLM-as-judge
-- [ ] [FEATURE] Source attribution verification — `src/guardrails/pipeline.py` (PRD Section 5.5)
+- [x] [FEATURE] Source attribution verification — `src/guardrails/pipeline.py` (PRD Section 5.5)
   - Verify cited sources exist in retrieval results
-- [ ] [FEATURE] Guardrail pipeline integration — input wiring (PRD Section 5.5)
+- [x] [FEATURE] Guardrail pipeline integration — input wiring (PRD Section 5.5)
   - Wire input guardrails (injection + PII + topic policy) to run pre-LLM on every request
   - Return: `{ passed, flags: [{ type, severity, detail }] }`
-- [ ] [FEATURE] Guardrail pipeline integration — output wiring (PRD Section 5.5)
+- [x] [FEATURE] Guardrail pipeline integration — output wiring (PRD Section 5.5)
   - Wire output guardrails (hallucination + content safety + source attribution) to run post-LLM
   - Store guardrail_flags in messages table
 
 ### Conversation Memory
-- [ ] [FEATURE] Short-term memory — `src/memory/short_term.py` (PRD Section 5.6)
+- [x] [FEATURE] Short-term memory — `src/memory/short_term.py` (PRD Section 5.6)
   - Keep last N messages in context window (`MEMORY_WINDOW_SIZE`, default 20)
-- [ ] [FEATURE] Long-term memory — `src/memory/long_term.py` (PRD Section 5.6)
+- [x] [FEATURE] Long-term memory — `src/memory/long_term.py` (PRD Section 5.6)
   - Summarize older messages using cheap LLM (Gemini Flash) when context limit exceeded
   - Store summaries for conversation continuity
-- [ ] [FEATURE] Entity memory — `src/memory/entity.py` (PRD Section 5.6)
+- [x] [FEATURE] Entity memory — `src/memory/entity.py` (PRD Section 5.6)
   - Extract named entities from conversations → store in Neo4j
   - Retrieve entity context on new turns for personalization
-- [ ] [FEATURE] Memory manager — `src/memory/manager.py` (PRD Section 5.6)
+- [x] [FEATURE] Memory manager — `src/memory/manager.py` (PRD Section 5.6)
   - Orchestrate short-term + long-term + entity memory
   - Return: `{ context_messages, entity_context, memory_summary? }`
 
 ### Knowledge Graph Integration
-- [ ] [FEATURE] Entity extraction during ingestion (PRD Section 5.1 step 7)
+- [x] [FEATURE] Entity extraction during ingestion (PRD Section 5.1 step 7)
   - Extract people, organizations, dates, concepts from document chunks
   - Upsert entities + relationships into Neo4j
-- [ ] [FEATURE] Graph search — `src/retrieval/graph_search.py` (PRD Section 5.2)
+- [x] [FEATURE] Graph search — `src/retrieval/graph_search.py` (PRD Section 5.2)
   - Query Neo4j for entities related to query entities
   - Pull in chunks from related documents for context expansion
-- [ ] [FEATURE] Reranker — `src/retrieval/reranker.py` (PRD Section 5.2)
+- [x] [FEATURE] Reranker — `src/retrieval/reranker.py` (PRD Section 5.2)
   - Score results: `0.7 * vector_similarity + 0.2 * keyword_overlap + 0.1 * graph_relevance`
   - Return top-N reranked results
-- [ ] [FEATURE] Hybrid retrieval engine — `src/retrieval/engine.py` (PRD Section 5.2)
+- [x] [FEATURE] Hybrid retrieval engine — `src/retrieval/engine.py` (PRD Section 5.2)
   - Orchestrate: vector search → keyword boost → graph expansion → reranking
   - Return top-5 results with scores and source metadata
-- [ ] [FEATURE] Graph API endpoints (PRD Section 8b)
+- [x] [FEATURE] Graph API endpoints (PRD Section 8b)
   - `GET /api/graph/entities` — list entities
   - `GET /api/graph/related/:entityId` — get entity + relationships
-- [ ] [VERIFY] Phase 3 test coverage ≥ 80% — `pytest --cov`
+- [x] [VERIFY] Phase 3 test coverage ≥ 80% — `pytest --cov` (achieved: 89%)
 
 ---
 
