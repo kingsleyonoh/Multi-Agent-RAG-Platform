@@ -398,31 +398,31 @@
 ## Phase 5: Deploy + Polish
 
 ### Background Jobs
-- [ ] [FEATURE] Cache cleanup job (PRD Section 7)
+- [x] [FEATURE] Cache cleanup job (PRD Section 7)
   - Delete expired `semantic_cache` entries — every 1h
-- [ ] [FEATURE] Conversation summary job (PRD Section 7)
+- [x] [FEATURE] Conversation summary job (PRD Section 7)
   - Summarize long conversations exceeding memory window — every 6h
-- [ ] [FEATURE] Evaluation aggregation job (PRD Section 7)
+- [x] [FEATURE] Evaluation aggregation job (PRD Section 7)
   - Pre-compute aggregate quality metrics — every 24h
-- [ ] [FEATURE] Cost budget reset job (PRD Section 7)
+- [x] [FEATURE] Cost budget reset job (PRD Section 7)
   - Reset daily cost budgets per user — daily at midnight UTC
-- [ ] [FEATURE] Knowledge graph sync job (PRD Section 7)
+- [x] [FEATURE] Knowledge graph sync job (PRD Section 7)
   - Async background worker triggered on document ingestion
   - Runs entity extraction → upsert Neo4j (distinct from inline extraction in Phase 3)
   - Wire as FastAPI background task from ingestion pipeline
 
 ### Deployment
-- [ ] [FEATURE] Production Docker Compose (PRD Section 10)
+- [x] [FEATURE] Production Docker Compose (PRD Section 10)
   - FastAPI app + PostgreSQL 16/pgvector + Neo4j 5 Community + Redis 7
   - Traefik labels for `ai.kingsleyonoh.com` with auto TLS
-- [ ] [FEATURE] Deploy to Hetzner VPS (PRD Section 10)
+- [x] [FEATURE] Deploy to Hetzner VPS (PRD Section 10)
   - SSH deploy: pull → build → migrate → restart
   - Traefik health-based routing
 
 ### Monitoring & Observability
-- [ ] [FEATURE] BetterStack uptime monitoring (PRD Section 10b)
+- [x] [FEATURE] BetterStack uptime monitoring (PRD Section 10b)
   - Poll `/api/health` endpoint
-- [ ] [FEATURE] Alerting rules implementation (PRD Section 10b)
+- [x] [FEATURE] Alerting rules implementation (PRD Section 10b)
   - Health non-200 for 3 checks → critical
   - Daily LLM spend > $10 → warning
   - Guardrail block rate > 30% in 1h → warning
