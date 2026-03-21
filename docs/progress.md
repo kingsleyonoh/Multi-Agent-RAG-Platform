@@ -448,18 +448,18 @@
 
 ## Success Criteria (PRD Section 15)
 
-- [ ] Documents ingest, chunk, and embed successfully with pgvector storage
-- [ ] Vector search returns relevant chunks with > 0.7 similarity scores
-- [ ] Chat responses are grounded in retrieved context (faithfulness > 0.8)
-- [ ] Multi-model routing correctly selects providers based on task type
-- [ ] Agent tool calling executes registered tools and returns results to LLM
-- [ ] Guardrails block prompt injection attempts with > 90% accuracy
-- [ ] Semantic cache serves repeated queries without LLM calls (cache hit rate measurable)
-- [ ] Knowledge graph enriches retrieval results with entity relationships
-- [ ] MCP server is discoverable and callable by external MCP clients
-- [ ] Cost tracking reports accurate per-model, per-request spending
-- [ ] All tests pass with > 80% coverage
-- [ ] System deploys with `docker compose up`
+- [x] Documents ingest, chunk, and embed successfully with pgvector storage
+- [x] Vector search returns relevant chunks with > 0.7 similarity scores
+- [x] Chat responses are grounded in retrieved context (faithfulness > 0.8)
+- [x] Multi-model routing correctly selects providers based on task type
+- [x] Agent tool calling executes registered tools and returns results to LLM
+- [x] Guardrails block prompt injection attempts with > 90% accuracy
+- [x] Semantic cache serves repeated queries without LLM calls (cache hit rate measurable)
+- [x] Knowledge graph enriches retrieval results with entity relationships
+- [x] MCP server is discoverable and callable by external MCP clients
+- [x] Cost tracking reports accurate per-model, per-request spending
+- [x] All tests pass with > 80% coverage
+- [x] System deploys with `docker compose up`
 
 ---
 
