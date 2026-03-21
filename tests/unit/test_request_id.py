@@ -8,6 +8,7 @@ The middleware must:
 """
 
 import uuid
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import structlog
@@ -16,15 +17,52 @@ from httpx import ASGITransport, AsyncClient
 from src.main import create_app
 
 
+def _stub_app_state(app):
+    """Attach mock service objects so the health route can respond.
+
+    Uses ``return_value`` (not ``side_effect`` lists) so the mocks are
+    reusable across multiple requests within the same test.
+    """
+    mock_conn = AsyncMock()
+    # Each .execute() call returns a result with .scalar() → ok value
+    mock_conn.execute = AsyncMock(
+        return_value=MagicMock(scalar=MagicMock(return_value="vector")),
+    )
+    mock_ctx = AsyncMock()
+    mock_ctx.__aenter__ = AsyncMock(return_value=mock_conn)
+    mock_ctx.__aexit__ = AsyncMock(return_value=False)
+    app.state.db_engine = MagicMock()
+    app.state.db_engine.connect = MagicMock(return_value=mock_ctx)
+    app.state.neo4j_driver = MagicMock()
+    app.state.neo4j_driver.verify_connectivity = AsyncMock()
+    app.state.redis_client = MagicMock()
+    app.state.redis_client.ping = AsyncMock(return_value=True)
+
+
 @pytest.fixture
 def app():
-    """Create a fresh FastAPI app with middleware registered."""
-    return create_app()
+    """Create a fresh FastAPI app with middleware registered and mocked state."""
+    _app = create_app()
+    _stub_app_state(_app)
+    return _app
 
 
 @pytest.fixture
 def transport(app):
     return ASGITransport(app=app)
+
+
+@pytest.fixture(autouse=True)
+def _patch_httpx():
+    """Prevent real HTTP calls to the LLM provider during request_id tests."""
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    inst = AsyncMock()
+    inst.get = AsyncMock(return_value=mock_resp)
+    inst.__aenter__ = AsyncMock(return_value=inst)
+    inst.__aexit__ = AsyncMock(return_value=False)
+    with patch("src.api.routes.health.httpx.AsyncClient", return_value=inst):
+        yield
 
 
 class TestRequestIDMiddleware:

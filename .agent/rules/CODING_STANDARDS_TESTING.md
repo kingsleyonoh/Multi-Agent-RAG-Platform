@@ -13,6 +13,7 @@
 - **NEVER skip or mark tests as expected failures** without explicit user approval.
 - **NEVER weaken a test assertion** to make it pass.
 - **NEVER delete a failing test.** Failing tests are bugs. Fix them.
+- **NEVER assume test failures are "pre-existing"** without verifying. If tests you didn't directly edit fail during regression, YOUR changes likely broke them indirectly (e.g. changing a shared route, modifying app state, altering middleware behavior). Always trace the root cause — check what route/state/fixture the failing tests depend on and whether your changes affected it. Do NOT commit until ALL tests pass.
 
 ### TDD Sequence is Non-Negotiable
 - Tests FIRST, then implementation. Never the reverse.
