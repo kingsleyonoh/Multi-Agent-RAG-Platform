@@ -340,58 +340,58 @@
 ## Phase 4: Cache + Evaluation + MCP
 
 ### Semantic Cache
-- [ ] [FEATURE] Semantic cache — `src/cache/semantic.py` (PRD Section 5.7)
+- [x] [FEATURE] Semantic cache — `src/cache/semantic.py` (PRD Section 5.7)
   - Embed query → search cache for vectors with cosine similarity > 0.95
   - Cache hit → return cached response, skip LLM call, increment hit_count
   - Cache miss → process normally, store query + response with TTL
   - Expire entries after 24h (`CACHE_TTL_HOURS`)
   - Invalidate when knowledge base updated (new document ingested)
-- [ ] [FEATURE] In-memory embedding LRU cache (PRD Section 10b)
+- [x] [FEATURE] In-memory embedding LRU cache (PRD Section 10b)
   - LRU cache for repeat embedding queries within a session
   - Avoid re-embedding identical query strings
-- [ ] [FEATURE] Cache stats endpoint — `GET /api/cache/stats` (PRD Section 8b)
+- [x] [FEATURE] Cache stats endpoint — `GET /api/cache/stats` (PRD Section 8b)
   - Total entries, hit rate, estimated cost saved
 
 ### Prompt Registry
-- [ ] [FEATURE] Prompt registry — `src/prompts/registry.py` (PRD Section 4.4, 5)
+- [x] [FEATURE] Prompt registry — `src/prompts/registry.py` (PRD Section 4.4, 5)
   - CRUD operations for Jinja2 prompt templates
   - Versioning (auto-increment on update)
   - `is_active` flag for A/B testing
   - `model_hint` field for suggested model per prompt
-- [ ] [FEATURE] Initial Jinja2 prompt templates — `src/prompts/templates/` (PRD Section 9, implied)
+- [x] [FEATURE] Initial Jinja2 prompt templates — `src/prompts/templates/` (PRD Section 9, implied)
   - System prompt template for RAG chat
   - Summarization prompt template
   - Evaluation judge prompt templates
-- [ ] [FEATURE] Prompt API endpoints (PRD Section 8b)
+- [x] [FEATURE] Prompt API endpoints (PRD Section 8b)
   - `POST /api/prompts` — create prompt
   - `GET /api/prompts` — list prompts
   - `PUT /api/prompts/:id` — update prompt (increments version)
 
 ### Evaluation Harness
-- [ ] [FEATURE] Relevance scorer — `src/evaluation/relevance.py` (PRD Section 5.9)
+- [x] [FEATURE] Relevance scorer — `src/evaluation/relevance.py` (PRD Section 5.9)
   - LLM-as-judge: are retrieved chunks relevant to the query?
-- [ ] [FEATURE] Faithfulness scorer — `src/evaluation/faithfulness.py` (PRD Section 5.9)
+- [x] [FEATURE] Faithfulness scorer — `src/evaluation/faithfulness.py` (PRD Section 5.9)
   - Claim extraction + verification against source chunks
-- [ ] [FEATURE] Correctness scorer — `src/evaluation/correctness.py` (PRD Section 5.9)
+- [x] [FEATURE] Correctness scorer — `src/evaluation/correctness.py` (PRD Section 5.9)
   - LLM-as-judge: does the response answer the question?
-- [ ] [FEATURE] Evaluation harness — `src/evaluation/harness.py` (PRD Section 5.9)
+- [x] [FEATURE] Evaluation harness — `src/evaluation/harness.py` (PRD Section 5.9)
   - Run all metrics after each RAG response
   - Store scores in `evaluations` table
   - Flag responses below threshold (`EVAL_MIN_THRESHOLD`, default 0.7)
-- [ ] [FEATURE] Metrics API route file — `src/api/metrics.py` (PRD Section 8b, 9)
+- [x] [FEATURE] Metrics API route file — `src/api/metrics.py` (PRD Section 8b, 9)
   - `GET /api/metrics/cost` — total cost, by model, by day
   - `GET /api/metrics/quality` — avg relevance, avg faithfulness, by model
 
 ### MCP Server
-- [ ] [FEATURE] MCP server implementation — `src/mcp/server.py` (PRD Section 5.8)
+- [x] [FEATURE] MCP server implementation — `src/mcp/server.py` (PRD Section 5.8)
   - MCP server using `mcp` Python SDK
   - Tools: `search_documents`, `ingest_document`, `query_graph`, `get_conversation_history`
   - Resources: `document://`, `conversation://` URI schemes
   - Tool discovery, parameter validation, execution
   - Compatible with MCP-aware clients (Claude Desktop, Cursor)
   - Port: `MCP_SERVER_PORT` (default 3001), Transport: `MCP_TRANSPORT` (default `stdio`)
-  - [ ] [TEST] Integration test for MCP tool discovery and execution
-- [ ] [VERIFY] Phase 4 test coverage ≥ 80% — `pytest --cov`
+  - [x] [TEST] Integration test for MCP tool discovery and execution
+- [x] [VERIFY] Phase 4 test coverage ≥ 80% — achieved **95%** (378 total tests passing)
 
 ---
 
