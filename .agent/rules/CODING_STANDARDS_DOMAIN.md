@@ -2,20 +2,65 @@
 
 > Part 3 of 3. Also loaded: `CODING_STANDARDS.md`, `CODING_STANDARDS_TESTING.md`
 
+## Architecture Rules (Project-Specific)
+
+### Dependency Hierarchy (Enforced)
+```
+lib/ → nothing
+db/ → lib/
+cache/ → db/ (Redis), lib/
+ingestion/ → db/ (PG, Neo4j), lib/
+retrieval/ → db/ (PG, Neo4j), lib/
+llm/ → lib/ (single OpenRouter client)
+guardrails/ → lib/, llm/ (for LLM-as-judge)
+memory/ → db/ (PG, Neo4j), llm/ (for summarization), lib/
+agents/ → retrieval/, llm/, db/, lib/
+evaluation/ → db/, llm/ (for LLM-as-judge), lib/
+prompts/ → db/, lib/
+mcp/ → retrieval/, ingestion/, db/, lib/
+api/ → all modules above
+main.py → api/, db/, mcp/, config
+```
+- **NEVER import upward** in this hierarchy. If `db/` needs something from `llm/`, the design is wrong.
+- **NEVER import across siblings** unless there's an explicit arrow above.
+
+### OpenRouter Rules
+- **ALL LLM and embedding calls** go through `src/llm/openrouter.py` — never call model APIs directly.
+- **ALL config** reads from `src/config.py` Pydantic Settings — never use `os.getenv()` directly.
+- Model names use OpenRouter format: `provider/model-name` (e.g., `openai/gpt-4o`, `anthropic/claude-3.5-sonnet`).
+
+### Python/FastAPI Conventions
+- Use `async def` for all route handlers and DB operations.
+- Use Pydantic v2 models for all request/response schemas.
+- Use `Depends()` for dependency injection (auth, DB sessions, rate limiting).
+- Database sessions via async context manager — never open sessions without cleanup.
+- UUID primary keys for all tables (use `uuid7()` for time-ordered IDs).
+- All timestamps use `datetime.utcnow()` with UTC timezone.
+
+## Public Demo Security
+
+> This project uses OpenRouter (paid API). When deployed publicly (`DEMO_MODE=true`):
+
+- **Rate limiting:** Enforce per-IP and per-API-key rate limits (see PRD Section 8b rate limit column).
+- **Cost caps:** Enforce `DAILY_COST_LIMIT_USD` per user. Return `COST_LIMIT_EXCEEDED` error when exceeded.
+- **Token limits:** Cap max input tokens per request to prevent prompt-stuffing attacks.
+- **API key rotation:** Support multiple API keys via `API_KEYS` env var (comma-separated).
+- **No anonymous access:** All endpoints except `/api/health` require `X-API-Key`.
+
 ## Deployment Flow (Dev → Production)
 
 ### Dev Branch Workflow
 1. All implementation work happens on `dev` branch
-2. Tests run against local services (Supabase, etc.)
+2. Tests run against local Docker services (PostgreSQL + pgvector, Neo4j, Redis)
 3. Each completed item → commit → push to `dev`
 4. Run full test suite frequently
 
 ### When Ready to Deploy
 1. Ensure ALL tests pass on `dev`
 2. Merge `dev` → `main`
-3. Push `main` → triggers deployment pipeline
-4. Run migrations against production database
-5. Verify deployment in production
+3. SSH into Hetzner VPS → `git pull origin main`
+4. `docker compose run --rm app alembic upgrade head` (run migrations)
+5. `docker compose up -d` → verify deployment
 
 ### Emergency Hotfix Flow
 - Branch from `main` → `hotfix/description`
@@ -32,7 +77,7 @@
 
 ### Input Validation
 - Validate ALL user input at the boundary (API route, form handler)
-- Use framework validators (Pydantic, Zod, Django Forms)
+- Use Pydantic v2 models for all request/response validation
 - Never trust client-side validation alone
 
 ### Authentication & Authorization
@@ -55,14 +100,14 @@
 
 Before merging ANY feature to `main`:
 
-1. **All tests pass** — `python -m pytest` / `npm test` / equivalent shows 0 failures
-2. **No console.log / print debugging** — remove all debug output
+1. **All tests pass** — `python -m pytest` shows 0 failures
+2. **No print debugging** — remove all `print()` and debug output, use structlog
 3. **No TODO/FIXME/HACK** — resolve them or create tickets
 4. **Error handling exists** — no unhandled exceptions in user flows
-5. **Types are complete** — no `any` / `Any` types in TypeScript/Python typed code
-6. **Migrations are committed** — all DB changes have migration files
+5. **Types are complete** — no `Any` types, all functions type-hinted
+6. **Migrations committed** — all DB changes have Alembic migration files
 7. **Environment variables documented** — new ones added to `.env.example`
-8. **Linting passes** — code matches project style rules
+8. **Linting passes** — `ruff check .` clean, `mypy src/` passes
 
 ## Code Organization Conventions
 
@@ -73,11 +118,12 @@ Before merging ANY feature to `main`:
 4. Blank line between each group
 
 ### Naming Conventions
-- **Files:** `snake_case.py` / `kebab-case.ts` (follow project convention)
+- **Files:** `snake_case.py`
 - **Classes:** `PascalCase`
-- **Functions/Methods:** `snake_case` (Python) / `camelCase` (JS/TS)
+- **Functions/Methods:** `snake_case`
 - **Constants:** `UPPER_SNAKE_CASE`
-- **Private:** Prefix with `_` (Python)
+- **Private:** Prefix with `_`
+- **Pydantic models:** `{Entity}Create`, `{Entity}Response`, `{Entity}Update`
 
 ### Project Structure
 - Follow the structure defined in `CODEBASE_CONTEXT.md`
@@ -85,13 +131,45 @@ Before merging ANY feature to `main`:
 - If unsure where something belongs, check `CODEBASE_CONTEXT.md` or ask
 
 ## Logging Standards
-- Use structured logging (JSON format in production)
+- Use `structlog` for all logging — JSON output to stdout
 - Log levels: DEBUG (dev only), INFO (normal events), WARNING (recoverable), ERROR (failures), CRITICAL (system down)
 - Include context: user_id, request_id, module name
-- NEVER log sensitive data (passwords, tokens, PII)
+- NEVER log sensitive data (passwords, tokens, PII, API keys)
+- All LLM calls must log: model, tokens_in, tokens_out, cost_usd, latency_ms
 
 ## Error Response Standards
 - Consistent error format across all endpoints
 - Include: error code, human-readable message, timestamp
 - Never leak stack traces to clients in production
 - Log full error details server-side
+
+## Server-Side Performance Rules
+
+### Deduplicate Expensive Calls
+If multiple functions on the same request path call the same expensive operation (auth check, config fetch, external API), extract it into a shared cached helper (e.g., request-scoped cache, singleton per request). Never let each function create its own call — N actions × M calls = latency multiplication.
+
+### Parallel by Default
+Independent operations (DB queries, API calls, file reads) MUST run concurrently (`asyncio.gather`, etc.). Sequential execution is only for data-dependent chains where one result feeds the next.
+
+### Wire It or Delete It
+If you create a utility, middleware, or proxy file, connect it to the framework entry point in the same commit. Unwired code creates false confidence — the feature "exists" but doesn't execute.
+
+### Compound Load Audit
+After implementing 5+ operations callable from a single entry point (page render, API endpoint, CLI command), audit total I/O calls. Features built incrementally work in isolation but compound into latency regressions that correctness tests never catch.
+
+### Prefer Joins Over Multiple Queries
+If the ORM/DB supports joins or eager loading, use them. N separate queries for N related tables is a sequential waterfall — one joined query is one round-trip. This includes any pattern where you fetch IDs from one table then loop to fetch details from another.
+
+### Pin Compute to Data Region
+Serverless functions must run in the same region as the database. Unmatched regions add 50-100ms per query. Set this in deployment config during Phase 0 setup — not after performance problems surface.
+
+## Code Structure Rules
+
+### Thin Entry Points
+Route handlers, server actions, CLI commands, and event handlers must stay thin — validate input, call a service/domain function, format the response. Extract business logic, side effects (notifications, logging, external calls), and data access into a separate layer. Entry points that mix multiple concerns become unmaintainable and untestable.
+
+### Single State Mechanism Per Feature
+Multi-step flows (wizards, forms, onboarding) must use ONE state management approach. Mixing persistence mechanisms (e.g., browser storage + in-memory cache + framework state + background sync) creates maintenance burden and race conditions. Pick one, stick with it.
+
+### Modularity Awareness
+Before adding code to any file, assess its current structure. Files should have a single clear responsibility. When a file's scope grows to cover multiple concerns, split by responsibility into separate modules — don't wait for a modularity audit. The project's limits (250 lines/file, 40 lines/function, 180 lines/class from `/check-modularity`) are guardrails, not targets.

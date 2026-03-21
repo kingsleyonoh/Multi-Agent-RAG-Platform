@@ -32,26 +32,22 @@ You have a vast library of specialized skills available. **Use them proactively*
 ### How Skill Selection Works
 1. **Before starting any implementation task**, mentally scan your available skills for matches.
 2. If a relevant skill exists, **read its SKILL.md first** using `view_file`, then follow its guidance.
-3. **Announce your choice**: *"I am invoking the [skill-name] skill to ensure this follows best practices."*
+3. **Announce your choice**: *"Using [skill-name] skill for this task."*
 4. When multiple skills could apply, invoke the most specific one (e.g., `react-patterns` over `frontend-design` for a React component).
 5. **When in doubt, invoke the skill.** Reading a SKILL.md costs 30 seconds. Getting it wrong costs hours.
 
 ### When to Invoke Skills (Non-Negotiable)
-- **Building with a specific framework/library** → find the matching skill (React, Next.js, Django, FastAPI, etc.)
-- **Touching security** (auth, input validation, secrets, API exposure) → invoke a security skill
+- **Building with a specific framework/library** → find the matching skill
+- **Touching security** (auth, input validation, secrets) → invoke a security skill
 - **Writing tests** → invoke the testing skill for your language/framework
-- **Designing a database schema or API** → invoke the design/architecture skill
+- **Designing a database schema or API** → invoke architecture skill
 - **Debugging a bug** → invoke `systematic-debugging` before guessing
-- **Deploying or containerizing** → invoke the deployment skill for your platform
-- **Integrating a payment provider, email service, or external API** → check for a dedicated skill first
-- **Working with AI/LLM features** → invoke the relevant AI skill (RAG, agents, prompts)
-- **Writing documentation** → invoke the documentation skill for the format you need
-- **Unfamiliar domain or new library** → research skill first, then build
+- **Deploying or containerizing** → invoke the deployment skill
+- **Integrating external APIs/services** → check for a dedicated skill first
+- **Working with AI/LLM features** → invoke the relevant AI skill
+- **Writing documentation** → invoke the documentation skill
 
-### What NOT to Do
-- ❌ Skip skills because "I already know this" — the skill may have guardrails you'd miss
-- ❌ Hardcode patterns from memory when a skill has the latest best practices
-- ❌ Use a generic approach when a project-specific skill exists
+**Don't** skip skills because "I already know this", hardcode patterns from memory, or use generic approaches when a project-specific skill exists.
 
 ## Git Commit Convention
 
@@ -67,23 +63,11 @@ You have a vast library of specialized skills available. **Use them proactively*
 | `chore` | Tooling, workflows, config, dependencies |
 | `style` | Formatting, whitespace, no logic change |
 
-**Scope** = the module, app, or area affected (e.g., `pricing`, `auth`, `db`, `workflows`).
+**Scope** = module affected (e.g., `ingestion`, `retrieval`, `llm`, `agents`, `guardrails`, `memory`, `cache`, `evaluation`, `prompts`, `mcp`, `api`, `db`, `lib`, `config`, `tests`, `workflows`, `docs`).
 
-**Rules:**
-- Subject line max 72 characters.
-- Use imperative mood: "add filter" not "added filter".
-- Reference the `[BUG]`/`[FIX]`/`[FEATURE]` from `progress.md` when applicable.
-- One commit per completed item. Don't bundle unrelated changes.
+**Rules:** Subject ≤72 chars. Imperative mood. Reference `[BUG]`/`[FEATURE]` from `progress.md`. One commit per item.
 
-**Examples:**
-```
-feat(pricing): implement UndercutBracket model with tenant FK
-fix(sending): guard against None accounts on sending page
-refactor(db): extract monitoring queries into dedicated mixin
-test(replies): add 11 tests for intent classification edge cases
-docs(context): update CODEBASE_CONTEXT.md with new schema tables
-chore(workflows): add sprint velocity to resume workflow
-```
+**Examples:** `feat(ingestion): add PDF text extractor`, `fix(retrieval): handle empty vector results`, `test(guardrails): add PII detection edge cases`
 
 ## AI Discipline Rules (Prevent Common AI Failures)
 

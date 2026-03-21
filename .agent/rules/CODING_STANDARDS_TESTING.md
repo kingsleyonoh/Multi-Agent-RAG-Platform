@@ -13,6 +13,7 @@
 - **NEVER skip or mark tests as expected failures** without explicit user approval.
 - **NEVER weaken a test assertion** to make it pass.
 - **NEVER delete a failing test.** Failing tests are bugs. Fix them.
+- **NEVER assume test failures are "pre-existing"** without verifying. If tests you didn't directly edit fail during regression, YOUR changes likely broke them indirectly (e.g. changing a shared route, modifying app state, altering middleware behavior). Always trace the root cause — check what route/state/fixture the failing tests depend on and whether your changes affected it. Do NOT commit until ALL tests pass.
 
 ### TDD Sequence is Non-Negotiable
 - Tests FIRST, then implementation. Never the reverse.
@@ -46,6 +47,11 @@ Before moving from RED → GREEN, verify ALL applicable categories have tests:
 | 10 | Meta options | Are ordering, indexes, and constraints working? |
 
 **If a category applies and you skip it, you're cheating.** If RED phase shows fewer than 2 failures, add more tests — you're probably not testing enough.
+
+### Performance Awareness
+- Correctness tests alone don't catch latency regressions — a page can pass all tests while making 10× the necessary network calls
+- When a single page/endpoint triggers 3+ backend operations, consider asserting call count or response time
+- After every batch of 5+ features, do a compound load check: load real pages and verify total I/O matches expectations
 
 ## Edge Case Coverage Guide
 
@@ -92,14 +98,14 @@ When deciding how to test a service, follow this order:
 3. **Mock** (last resort) — only when options 1 and 2 are impossible
 
 ### Test LIVE (Never Mock)
-- Your database (local Supabase, local Postgres) — validates schema, column names, constraints, query behavior
+- Your database (local PostgreSQL + pgvector, local Neo4j, local Redis via Docker) — validates schema, column names, constraints, query behavior
 - Your own API endpoints — call the actual route, not a stub
 - Your own server actions / business logic — test the real function
-- File storage you control (local Supabase Storage, local filesystem)
+- File storage you control (local filesystem)
 
 ### Mock ONLY These
-- Third-party payment APIs (Stripe charges money)
-- Email/SMS delivery (SendGrid/Twilio sends messages)
+- OpenRouter LLM API (costs money per request)
+- Third-party email/notification APIs (BetterStack, etc.)
 - Rate-limited external APIs you don't control
 - Services with irreversible side effects
 - Cloud-only services with no local emulator AND no dev tier
