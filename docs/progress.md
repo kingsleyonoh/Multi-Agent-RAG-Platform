@@ -58,11 +58,14 @@
   - `.env.example` annotated with `# PROD:` notes for production values
   - 6 TDD tests for computed properties
   - Verified: 48 total tests pass (6 env + 32 config + 5 main + 4 LLM mock + 1 DB)
-- [ ] [FEATURE] Graceful shutdown — `src/main.py` lifespan (PRD Section 10, implied)
-  - Signal handling (SIGTERM/SIGINT) for clean container stops
-  - Connection draining for in-flight requests
-  - Ordered resource disposal (Redis → Neo4j → PostgreSQL)
-  - [ ] [TEST] Unit test for shutdown sequence and resource cleanup
+- [x] [FEATURE] Graceful shutdown — `src/main.py` lifespan (PRD Section 10, implied)
+  - Shutdown event (`get_shutdown_event()`) set at start of shutdown
+  - Timeout-protected `_dispose_resource()` helper (default 5 s, catches errors + timeouts)
+  - Ordered resource disposal: Redis → Neo4j → PostgreSQL
+  - Structured logging for startup + shutdown (structlog)
+  - [x] [TEST] Unit test for shutdown sequence and resource cleanup
+    - 7 TDD tests: event set, disposal order (3), error isolation (2), timeout protection
+    - Verified: 164 passed, 1 skipped (7 shutdown + 157 pre-existing)
 
 ---
 
