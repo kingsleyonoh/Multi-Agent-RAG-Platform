@@ -429,10 +429,10 @@
   - Avg RAG relevance < 0.6 over 24h → warning
 
 ### Testing & QA
-- [ ] [FEATURE] Full integration test suite (PRD Section 6.2, Phase 5)
+- [x] [FEATURE] Full integration test suite (PRD Section 6.2, Phase 5)
   - End-to-end tests covering all API endpoints
   - Verify mock infrastructure from Phase 1 covers all LLM call paths
-- [ ] [FEATURE] Load test with concurrent chat sessions (PRD Phase 5, Section 10b)
+- [x] [FEATURE] Load test with concurrent chat sessions (PRD Phase 5, Section 10b)
   - Concurrent user simulation
   - Validate: chat first token (p95) < 1.5s
   - Validate: retrieval latency (p95) < 200ms
@@ -440,9 +440,9 @@
   - Validate: semantic cache lookup (p95) < 50ms
   - Validate: embedding generation < 300ms/chunk
   - Validate: cache hit rate > 20% at steady state
-- [ ] [FEATURE] Seed knowledge base with sample documents (PRD Phase 5)
+- [x] [FEATURE] Seed knowledge base with sample documents (PRD Phase 5)
   - Sample PDF, TXT, URL documents for demo
-- [ ] [VERIFY] Phase 5 test coverage ≥ 80% — `pytest --cov`
+- [x] [VERIFY] Phase 5 test coverage ≥ 80% — `pytest --cov`
 
 ---
 
