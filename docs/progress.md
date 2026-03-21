@@ -155,11 +155,13 @@
   - [x] [TEST] Unit test for error format, stack trace suppression, HTTP status codes
     - 8 TDD tests: PRD format, status preservation, auth unwrap, validation 422, dev traceback, prod suppression, consistency, success passthrough
     - Verified: 149 passed, 1 skipped (8 error handling + 141 pre-existing)
-- [ ] [FEATURE] Health endpoint — `GET /api/health` (PRD Section 8b, 10b)
+- [x] [FEATURE] Health endpoint — `GET /api/health` (PRD Section 8b, 10b)
   - PostgreSQL connectivity check + pgvector extension loaded
   - Neo4j connectivity check
   - Redis connectivity check
-  - LLM provider reachability (lightweight ping)
+  - LLM provider reachability (OpenRouter `/models` ping)
+  - [x] [TEST] 8 TDD tests: all-healthy, pg/neo4j/redis/llm down, pgvector missing, env+version, multi-failure
+  - Verified: 151 passed, 1 skipped (11 health + 140 pre-existing)
 
 ### Document Ingestion
 - [ ] [FEATURE] Text extractor — `src/ingestion/extractors/text.py` (PRD Section 5.1)

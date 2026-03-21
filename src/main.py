@@ -18,6 +18,7 @@ from fastapi import FastAPI
 from src.api.middleware.errors import register_error_handlers
 from src.api.middleware.rate_limit import RateLimitMiddleware
 from src.api.middleware.request_id import RequestIDMiddleware
+from src.api.routes.health import health_router
 from src.config import get_settings
 from src.db.neo4j import (
     close_driver as close_neo4j,
@@ -26,6 +27,7 @@ from src.db.neo4j import (
     verify_connectivity as verify_neo4j,
 )
 from src.db.postgres import dispose_engine, get_engine, init_pgvector
+from src.db.redis import close_client as close_redis, get_client as get_redis_client
 
 
 @asynccontextmanager
@@ -50,12 +52,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await init_neo4j_constraints(neo4j_driver)
     app.state.neo4j_driver = neo4j_driver
 
+    redis_client = get_redis_client(settings.REDIS_URL)
+    app.state.redis_client = redis_client
+
     yield
 
     # --- Shutdown ---
+    await close_redis(redis_client)
     await close_neo4j(neo4j_driver)
     await dispose_engine(engine)
-    # Future: close Redis connection
 
 
 def create_app() -> FastAPI:
@@ -79,17 +84,8 @@ def create_app() -> FastAPI:
     # --- Exception handlers ---
     register_error_handlers(app, env=settings.ENV)
 
-    # ------------------------------------------------------------------
-    # Health endpoint (always available, no auth)
-    # ------------------------------------------------------------------
-    @app.get("/api/health")
-    async def health() -> dict:
-        """Liveness / readiness probe."""
-        return {
-            "status": "ok",
-            "environment": settings.ENV,
-            "version": app.version,
-        }
+    # --- Routes ---
+    app.include_router(health_router)
 
     return app
 
