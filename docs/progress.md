@@ -167,36 +167,36 @@
   - Verified: 151 passed, 1 skipped (11 health + 140 pre-existing)
 
 ### Document Ingestion
-- [ ] [FEATURE] Text extractor — `src/ingestion/extractors/text.py` (PRD Section 5.1)
+- [x] [FEATURE] Text extractor — `src/ingestion/extractors/text.py` (PRD Section 5.1)
   - Plain text passthrough
-  - [ ] [TEST] Unit test for text extractor
-- [ ] [FEATURE] PDF extractor — `src/ingestion/extractors/pdf.py` (PRD Section 5.1)
+  - [x] [TEST] Unit test for text extractor
+- [x] [FEATURE] PDF extractor — `src/ingestion/extractors/pdf.py` (PRD Section 5.1)
   - PDF text extraction via `pdfplumber`
   - Scanned image warning (no OCR)
-  - [ ] [TEST] Unit test for PDF extractor
-- [ ] [FEATURE] Markdown extractor — `src/ingestion/extractors/markdown.py` (PRD Section 5.1)
+  - [x] [TEST] Unit test for PDF extractor
+- [x] [FEATURE] Markdown extractor — `src/ingestion/extractors/markdown.py` (PRD Section 5.1)
   - Markdown (.md) file passthrough with frontmatter stripping
-  - [ ] [TEST] Unit test for Markdown extractor
-- [ ] [FEATURE] URL extractor — `src/ingestion/extractors/url.py` (PRD Section 5.1)
+  - [x] [TEST] Unit test for Markdown extractor
+- [x] [FEATURE] URL extractor — `src/ingestion/extractors/url.py` (PRD Section 5.1)
   - URL scraping via `httpx` + `BeautifulSoup`
-  - [ ] [TEST] Unit test for URL extractor
-- [ ] [FEATURE] Text chunker — `src/ingestion/chunker.py` (PRD Section 5.1)
+  - [x] [TEST] Unit test for URL extractor
+- [x] [FEATURE] Text chunker — `src/ingestion/chunker.py` (PRD Section 5.1)
   - Recursive character splitting: 512 tokens/chunk, 50-token overlap
   - Configurable via `CHUNK_SIZE`, `CHUNK_OVERLAP`
-- [ ] [FEATURE] Embedding generator — `src/ingestion/embedder.py` (PRD Section 5.1)
+- [x] [FEATURE] Embedding generator — `src/ingestion/embedder.py` (PRD Section 5.1)
   - OpenRouter embedding API wrapper (`openai/text-embedding-3-small`)
   - Batch embedding support
   - Error handling: mark document `'failed'` on API failure
-- [ ] [FEATURE] Ingestion pipeline — `src/ingestion/pipeline.py` (PRD Section 5.1)
+- [x] [FEATURE] Ingestion pipeline — `src/ingestion/pipeline.py` (PRD Section 5.1)
   - Accept document → extract → deduplicate by content_hash → chunk → embed → store
   - Update document status: `pending` → `chunked` → `embedded` / `failed`
   - Reject empty documents with `EMPTY_DOCUMENT` error
   - Return existing document ID on duplicate content hash
-- [ ] [FEATURE] Cursor-based pagination utility (PRD Section 8b)
+- [x] [FEATURE] Cursor-based pagination utility (PRD Section 8b)
   - Reusable cursor + limit pagination for all list endpoints
   - Default page size 25, max 100
-  - [ ] [TEST] Unit test for cursor encoding/decoding, limit capping, edge cases
-- [ ] [FEATURE] Document API endpoints (PRD Section 8b)
+  - [x] [TEST] Unit test for cursor encoding/decoding, limit capping, edge cases
+- [x] [FEATURE] Document API endpoints (PRD Section 8b)
   - `POST /api/documents` — file upload → ingest
   - `POST /api/documents/url` — URL → ingest
   - `GET /api/documents` — list documents (cursor pagination, filters: status, source, created_after)
@@ -205,21 +205,21 @@
 - [ ] [VERIFY] Phase 1 test coverage ≥ 80% — `pytest --cov`
 
 ### Vector Search
-- [ ] [FEATURE] Vector search — `src/retrieval/vector_search.py` (PRD Section 5.2)
+- [x] [FEATURE] Vector search — `src/retrieval/vector_search.py` (PRD Section 5.2)
   - pgvector cosine similarity query
   - Top-K retrieval (configurable, default 10)
   - Similarity threshold filtering (default 0.7)
-- [ ] [FEATURE] Search API endpoint — `POST /api/search` (PRD Section 8b)
+- [x] [FEATURE] Search API endpoint — `POST /api/search` (PRD Section 8b)
   - Query embedding + pgvector search
   - Return results with relevance scores + source metadata
   - Filters: `document_ids`, `metadata`
 
 ### Basic Chat
-- [ ] [FEATURE] OpenRouter API client — `src/llm/openrouter.py` (PRD Section 5.3, 6.1)
+- [x] [FEATURE] OpenRouter API client — `src/llm/openrouter.py` (PRD Section 5.3, 6.1)
   - OpenAI-compatible REST client for `/api/v1/chat/completions`
   - Authentication via `Authorization: Bearer` + `X-Title` + `HTTP-Referer`
   - Error handling: 429 → backoff, 5xx → fallback, 402 → COST_LIMIT_EXCEEDED, timeout → downgrade
-- [ ] [FEATURE] Chat API route file — `src/api/chat.py` (PRD Section 8b, 9)
+- [x] [FEATURE] Chat API route file — `src/api/routes/chat.py` (PRD Section 8b, 9)
   - Register router with FastAPI app
   - `POST /api/chat/sync` — Query → retrieve context → LLM call → response
   - Return: `{ response, sources, model_used, cost }`
