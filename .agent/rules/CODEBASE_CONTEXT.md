@@ -2,7 +2,7 @@
 
 > Primary source of truth for all workflows. Updated by `/sync-context`.
 >
-> Last updated: 2026-03-16
+> Last updated: 2026-03-21
 > Template synced: 2026-03-20
 
 ## Tech Stack
@@ -42,9 +42,10 @@ multi-agent-rag-platform/
 │   ├── evaluation/         # harness.py, relevance.py, faithfulness.py, correctness.py
 │   ├── prompts/            # registry.py, templates/
 │   ├── mcp/                # server.py
-│   ├── api/                # chat.py, documents.py, conversations.py, graph.py, prompts.py, metrics.py, health.py
-│   │   └── middleware/     # auth.py, rate_limit.py, errors.py
-│   ├── db/                 # postgres.py, neo4j.py, redis.py, migrations/alembic/
+│   ├── api/
+│   │   ├── routes/         # health.py (more endpoints TBD)
+│   │   └── middleware/     # auth.py, rate_limit.py, errors.py, request_id.py
+│   ├── db/                 # postgres.py, neo4j.py, redis.py, models.py, migrations/
 │   └── lib/                # logger.py, utils.py
 ├── tests/                  # unit/, integration/, fixtures/llm/openrouter_responses/
 ├── docker-compose.yml
@@ -163,6 +164,8 @@ multi-agent-rag-platform/
 | Utilities | `src/lib/utils.py` | Content hashing, common helpers |
 | Error handling | `src/api/middleware/errors.py` | Centralized error types, consistent error format |
 | Auth | `src/api/middleware/auth.py` | API key validation, user ID extraction |
+| Rate limiting | `src/api/middleware/rate_limit.py` | Redis INCR fixed-window, per-endpoint PRD §8b limits, fail-open |
+| Health | `src/api/routes/health.py` | Per-service connectivity checks (PG, Neo4j, Redis, LLM) |
 | OpenRouter | `src/llm/openrouter.py` | Single client for all LLM + embedding calls |
 
 ## Deep References
@@ -182,6 +185,6 @@ multi-agent-rag-platform/
 | Prompt management | `src/prompts/` |
 | MCP server | `src/mcp/` |
 | API routes | `src/api/` |
-| Database migrations | `src/db/migrations/alembic/` |
+| Database migrations | `src/db/migrations/` |
 | Test patterns | `tests/` |
 | LLM response fixtures | `tests/fixtures/llm/openrouter_responses/` |

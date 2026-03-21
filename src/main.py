@@ -23,7 +23,10 @@ from fastapi import FastAPI
 from src.api.middleware.errors import register_error_handlers
 from src.api.middleware.rate_limit import RateLimitMiddleware
 from src.api.middleware.request_id import RequestIDMiddleware
+from src.api.routes.chat import router as chat_router
+from src.api.routes.documents import router as documents_router
 from src.api.routes.health import health_router
+from src.api.routes.search import router as search_router
 from src.config import get_settings
 from src.db.neo4j import (
     close_driver as close_neo4j,
@@ -151,6 +154,9 @@ def create_app() -> FastAPI:
 
     # --- Routes ---
     app.include_router(health_router)
+    app.include_router(documents_router)
+    app.include_router(search_router)
+    app.include_router(chat_router)
 
     return app
 
