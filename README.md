@@ -147,4 +147,12 @@ python -m pytest tests/ --cov=src --cov-report=term-missing
 python -m pytest tests/acceptance/ -v
 ```
 
+## License
+
+This project is licensed under the [GNU Affero General Public License v3.0](LICENSE) (AGPLv3).
+
+You are free to use, modify, and distribute this software under AGPLv3 terms. If you modify the code and deploy it as a network service, you must make your modifications available under the same license.
+
+**Commercial licensing** is available for organizations that need to embed this technology in proprietary systems without AGPLv3 obligations. Contact [Klevar](https://kingsleyonoh.com) for enterprise licensing terms.
+
 <!-- THEATRE_LINK -->
