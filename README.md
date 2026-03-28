@@ -147,7 +147,7 @@ python -m pytest tests/ --cov=src --cov-report=term-missing
 python -m pytest tests/acceptance/ -v
 ```
 
-<<<<<<< HEAD
+HEAD
 =======
 ## License
 
@@ -157,5 +157,4 @@ You are free to use, modify, and distribute this software under AGPLv3 terms. If
 
 **Commercial licensing** is available for organizations that need to embed this technology in proprietary systems without AGPLv3 obligations. Contact [Klevar](https://kingsleyonoh.com) for enterprise licensing terms.
 
->>>>>>> dev
 <!-- THEATRE_LINK -->
