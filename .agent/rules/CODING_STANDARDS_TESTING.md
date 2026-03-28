@@ -119,3 +119,33 @@ A mock that returns `{ user_id: 1 }` will pass even when the real column is `use
 ### Test Cleanup
 - Each test MUST clean up after itself (delete rows, reset state)
 - Use transactions with rollback when possible for speed
+
+## Backend API & Integration Testing
+
+> This section applies to backend-only projects (APIs, workers, CLI tools).
+
+### When to Write API Integration Tests
+- Every **API endpoint**: test request → response cycle with real HTTP semantics
+- Every **message consumer/handler**: test event processing with real or local message broker
+- Every **background job/worker**: test job execution with actual service dependencies
+- Every **middleware**: test request interception, auth guards, validation layers
+
+### What to Test
+| Priority | Test This | Example |
+|----------|-----------|---------|
+| 1 | Request/response cycle | POST /api/users → 201, returns created user |
+| 2 | Input validation | Missing required field → 400 with specific error |
+| 3 | Auth & authorization | No token → 401; wrong role → 403 |
+| 4 | Error handling | Invalid ID → 404; DB constraint → 409 |
+| 5 | Edge cases | Empty body, oversized payload, duplicate submission |
+
+### API Testing Patterns
+- Use FastAPI `TestClient` (or `httpx.AsyncClient` for async) for full request lifecycle
+- Test full request lifecycle — serialization, middleware, handler, response
+- Assert on status codes, response body structure, AND headers where relevant
+- Test pagination, filtering, and sorting with real DB rows
+
+### File Naming & Location
+- Name: `test_module_name.py` — co-located or in `tests/` mirror
+- Group shared test helpers in `tests/factories/` or `tests/conftest.py`
+
