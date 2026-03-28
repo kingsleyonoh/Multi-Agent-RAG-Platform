@@ -3,7 +3,7 @@
 > Primary source of truth for all workflows. Updated by `/sync-context`.
 >
 > Last updated: 2026-03-21
-> Template synced: 2026-03-20
+> Template synced: 2026-03-28
 
 ## Tech Stack
 
