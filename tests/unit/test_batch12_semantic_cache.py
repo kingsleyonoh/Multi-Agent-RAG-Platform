@@ -181,6 +181,7 @@ class TestCacheStatsEndpoint:
     @pytest.fixture()
     def client(self):
         app = FastAPI()
+        app.state.semantic_cache = SemanticCache()
         app.include_router(cache_router, prefix="/api/cache")
         return TestClient(app)
 

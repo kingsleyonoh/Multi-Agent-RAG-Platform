@@ -144,7 +144,9 @@ class TestMetricsAPIEndpoints:
 
     @pytest.fixture()
     def client(self):
+        from src.llm.cost_tracker import CostTracker
         app = FastAPI()
+        app.state.cost_tracker = CostTracker()
         app.include_router(metrics_router, prefix="/api/metrics")
         return TestClient(app)
 

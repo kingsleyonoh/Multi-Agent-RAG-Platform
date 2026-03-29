@@ -261,17 +261,38 @@ class TestCostTracker:
 
 def _test_app():
     """Minimal app for endpoint testing."""
+    from src.api.dependencies import get_cost_tracker, get_db_session, get_semantic_cache
+    from src.api.middleware.auth import require_api_key
+    from src.cache.semantic import SemanticCache
+    from src.llm.cost_tracker import CostTracker
     from src.main import create_app
 
-    return create_app()
+    app = create_app()
+    app.dependency_overrides[require_api_key] = lambda: {
+        "api_key": "test-key",
+        "user_id": "test-user",
+    }
+    app.dependency_overrides[get_cost_tracker] = lambda: CostTracker()
+    app.dependency_overrides[get_semantic_cache] = lambda: SemanticCache()
+    return app
 
 
 class TestStreamingChatEndpoint:
     """Tests for the SSE streaming chat endpoint."""
 
+    @respx.mock
     @pytest.mark.asyncio
     async def test_streaming_endpoint_exists(self) -> None:
         """POST /api/chat returns a streaming response."""
+        # Mock the streaming LLM call
+        sse_body = (
+            'data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n'
+            "data: [DONE]\n\n"
+        )
+        respx.post("https://openrouter.ai/api/v1/chat/completions").mock(
+            return_value=Response(200, text=sse_body)
+        )
+
         transport = ASGITransport(app=_test_app())
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             resp = await client.post(

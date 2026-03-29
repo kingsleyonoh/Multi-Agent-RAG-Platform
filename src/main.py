@@ -23,12 +23,18 @@ from fastapi import FastAPI
 from src.api.middleware.errors import register_error_handlers
 from src.api.middleware.rate_limit import RateLimitMiddleware
 from src.api.middleware.request_id import RequestIDMiddleware
+from src.api.routes.cache import router as cache_router
 from src.api.routes.chat import router as chat_router
 from src.api.routes.conversations import router as conversations_router
 from src.api.routes.documents import router as documents_router
+from src.api.routes.graph import router as graph_router
 from src.api.routes.health import health_router
+from src.api.routes.metrics import router as metrics_router
+from src.api.routes.prompts import router as prompts_router
 from src.api.routes.search import router as search_router
+from src.cache.semantic import SemanticCache as SemanticCacheService
 from src.config import get_settings
+from src.db.models import Base
 from src.db.neo4j import (
     close_driver as close_neo4j,
     get_driver as get_neo4j_driver,
@@ -36,8 +42,8 @@ from src.db.neo4j import (
     verify_connectivity as verify_neo4j,
 )
 from src.db.postgres import dispose_engine, get_engine, init_pgvector
-
 from src.db.redis import close_client as close_redis, get_client as get_redis_client
+from src.llm.cost_tracker import CostTracker
 
 logger = structlog.get_logger(__name__)
 
@@ -103,6 +109,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.db_engine = engine
     logger.info("startup_resource_ready", resource="PostgreSQL")
 
+    # Create all tables (idempotent — safe to call every startup)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    logger.info("startup_tables_created")
+
     neo4j_driver = get_neo4j_driver(
         settings.NEO4J_URI, settings.NEO4J_USER, settings.NEO4J_PASSWORD,
     )
@@ -115,6 +126,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     redis_client = get_redis_client(settings.REDIS_URL)
     app.state.redis_client = redis_client
     logger.info("startup_resource_ready", resource="Redis")
+
+    # Shared service instances
+    app.state.cost_tracker = CostTracker()
+    app.state.semantic_cache = SemanticCacheService(
+        similarity_threshold=settings.CACHE_SIMILARITY_THRESHOLD,
+        ttl_hours=settings.CACHE_TTL_HOURS,
+    )
+    app.state.settings = settings
+    logger.info("startup_services_ready")
 
     yield
 
@@ -159,6 +179,10 @@ def create_app() -> FastAPI:
     app.include_router(search_router)
     app.include_router(chat_router)
     app.include_router(conversations_router)
+    app.include_router(graph_router, prefix="/api/graph")
+    app.include_router(prompts_router, prefix="/api/prompts")
+    app.include_router(metrics_router, prefix="/api/metrics")
+    app.include_router(cache_router, prefix="/api/cache")
 
     return app
 
