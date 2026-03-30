@@ -44,14 +44,19 @@ def init_graph_search(neo4j_driver) -> None:
 async def _run_cypher(query: str, params: dict) -> list[dict]:
     """Execute a Cypher query against Neo4j.
 
-    Gracefully returns empty list when Neo4j is not wired.
+    Gracefully returns empty list when Neo4j is not wired or
+    unavailable (connection errors, DNS resolution failures).
     """
     if _neo4j_driver is None:
         return []
 
-    async with _neo4j_driver.session() as session:
-        result = await session.run(query, **params)
-        return await result.data()
+    try:
+        async with _neo4j_driver.session() as session:
+            result = await session.run(query, **params)
+            return await result.data()
+    except Exception:
+        logger.warning("graph_search_cypher_failed", exc_info=True)
+        return []
 
 
 async def search_graph(query_entities: list[str]) -> list[GraphResult]:

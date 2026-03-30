@@ -1,95 +1,72 @@
-# Multi-Agent RAG Platform — Production on Hetzner VPS
-# Usage: docker compose -f docker-compose.prod.yml up -d
-# Requires: Traefik reverse proxy already running on the VPS
+# Multi-Agent RAG Platform — Production on DigitalOcean VPS (1GB)
+# Neo4j excluded due to RAM constraints — graph search gracefully returns empty.
+# Deploy via: scp docker-compose.prod.yml deploy@104.248.137.96:/apps/multi-agent-rag/docker-compose.yml
 
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: rag-app
+    image: ghcr.io/kingsleyonoh/multi-agent-rag:latest
+    container_name: multi-agent-rag
     restart: unless-stopped
-    env_file:
-      - .env
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.rag.rule=Host(`ai.kingsleyonoh.com`)"
-      - "traefik.http.routers.rag.tls.certresolver=letsencrypt"
-      - "traefik.http.services.rag.loadbalancer.server.port=8000"
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 15s
+    env_file: .env
     depends_on:
       postgres:
         condition: service_healthy
-      neo4j:
-        condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.multi-agent-rag.rule=Host(`ai.kingsleyonoh.com`)"
+      - "traefik.http.routers.multi-agent-rag.entrypoints=websecure"
+      - "traefik.http.routers.multi-agent-rag.tls.certresolver=letsencrypt"
+      - "traefik.http.services.multi-agent-rag.loadbalancer.server.port=8000"
     networks:
-      - traefik
+      - traefik-public
       - internal
 
   postgres:
     image: pgvector/pgvector:pg16
-    container_name: rag-postgres
+    container_name: multi-agent-rag-db
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
       POSTGRES_DB: ragplatform
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    volumes:
-      - pg_data:/var/lib/postgresql/data
+      POSTGRES_USER: raguser
+      POSTGRES_PASSWORD: R4gPl4tf0rm_Pr0d_2026!
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U raguser -d ragplatform"]
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - internal
-
-  neo4j:
-    image: neo4j:5-community
-    container_name: rag-neo4j
-    restart: unless-stopped
-    environment:
-      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD}
+      start_period: 30s
     volumes:
-      - neo4j_data:/data
-    healthcheck:
-      test: ["CMD", "neo4j", "status"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
+      - pg_data:/var/lib/postgresql/data
     networks:
       - internal
 
   redis:
     image: redis:7-alpine
-    container_name: rag-redis
+    container_name: multi-agent-rag-redis
     restart: unless-stopped
-    volumes:
-      - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
-      timeout: 3s
+      timeout: 5s
       retries: 5
+    volumes:
+      - redis_data:/data
     networks:
       - internal
 
 volumes:
   pg_data:
-  neo4j_data:
   redis_data:
 
 networks:
-  traefik:
+  traefik-public:
     external: true
   internal:
-    driver: bridge
