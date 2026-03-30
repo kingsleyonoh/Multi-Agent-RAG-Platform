@@ -240,6 +240,27 @@ class Evaluation(Base):
 # ---------------------------------------------------------------------------
 
 
+class CostLog(Base):
+    __tablename__ = "cost_logs"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4,
+    )
+    user_id: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    model: Mapped[str] = mapped_column(Text, nullable=False)
+    tokens_in: Mapped[int] = mapped_column(Integer, nullable=False)
+    tokens_out: Mapped[int] = mapped_column(Integer, nullable=False)
+    cost_usd: Mapped[Numeric] = mapped_column(Numeric(10, 6), nullable=False)
+    created_at: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(),
+    )
+
+
+# ---------------------------------------------------------------------------
+# semantic_cache (PRD 4.6)
+# ---------------------------------------------------------------------------
+
+
 class SemanticCache(Base):
     __tablename__ = "semantic_cache"
 

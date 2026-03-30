@@ -30,7 +30,7 @@ class TestSemanticCacheStoreAndLookup:
     async def test_store_and_lookup_hit(self):
         cache = SemanticCache(similarity_threshold=0.95)
         emb = _vec(1.0)
-        cache.store("What is RAG?", "RAG is Retrieval-Augmented Generation.", emb)
+        await cache.store("What is RAG?", "RAG is Retrieval-Augmented Generation.", emb)
 
         # Lookup with the exact same embedding (similarity = 1.0)
         # We override _embed_query to return the same embedding
@@ -47,7 +47,7 @@ class TestSemanticCacheStoreAndLookup:
 
     async def test_miss_for_different_query(self):
         cache = SemanticCache(similarity_threshold=0.95)
-        cache.store("What is RAG?", "RAG response.", _vec(1.0))
+        await cache.store("What is RAG?", "RAG response.", _vec(1.0))
 
         # Different embedding → low similarity → miss
         async def _fake_embed(q):
@@ -64,7 +64,7 @@ class TestSemanticCacheTTL:
     async def test_expired_entries_return_none(self):
         cache = SemanticCache(similarity_threshold=0.95, ttl_hours=0)
         emb = _vec(1.0)
-        cache.store("query", "response", emb)
+        await cache.store("query", "response", emb)
 
         # TTL = 0 means entry is immediately expired
         async def _fake_embed(q):
@@ -83,7 +83,7 @@ class TestSemanticCacheStats:
     async def test_stats_tracking(self):
         cache = SemanticCache(similarity_threshold=0.95)
         emb = _vec(1.0)
-        cache.store("cached query", "cached response", emb)
+        await cache.store("cached query", "cached response", emb)
 
         async def _hit_embed(q):
             return emb
@@ -111,8 +111,8 @@ class TestSemanticCacheInvalidation:
 
     async def test_invalidate_all_clears_everything(self):
         cache = SemanticCache(similarity_threshold=0.95)
-        cache.store("q1", "r1", _vec(1.0))
-        cache.store("q2", "r2", _vec(0.5))
+        await cache.store("q1", "r1", _vec(1.0))
+        await cache.store("q2", "r2", _vec(0.5))
         assert len(cache.entries) == 2
 
         cache.invalidate_all()

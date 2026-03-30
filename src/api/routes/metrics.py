@@ -21,22 +21,8 @@ router = APIRouter(tags=["metrics"])
 
 @router.get("/cost")
 async def cost_metrics(cost_tracker=Depends(get_cost_tracker)):
-    """Return cost metrics from the live cost tracker."""
-    # Aggregate all records across users
-    all_records = []
-    for records in cost_tracker._records.values():
-        all_records.extend(records)
-
-    total_cost = sum(r.cost_usd for r in all_records)
-    by_model: dict[str, float] = {}
-    for r in all_records:
-        by_model[r.model] = by_model.get(r.model, 0.0) + r.cost_usd
-
-    return {
-        "total_cost": round(total_cost, 6),
-        "by_model": {k: round(v, 6) for k, v in by_model.items()},
-        "total_requests": len(all_records),
-    }
+    """Return cost metrics from the cost tracker (DB-backed)."""
+    return await cost_tracker.get_aggregate_metrics()
 
 
 @router.get("/quality")

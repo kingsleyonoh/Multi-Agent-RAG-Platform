@@ -19,10 +19,18 @@ from __future__ import annotations
 
 import httpx
 import structlog
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 logger = structlog.get_logger(__name__)
 
+_embed_retry = retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=1, max=8),
+    reraise=True,
+)
 
+
+@_embed_retry
 async def embed_texts(
     texts: list[str],
     *,

@@ -133,11 +133,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("startup_resource_ready", resource="Redis")
 
     # Shared service instances
-    app.state.cost_tracker = CostTracker()
+    app.state.cost_tracker = CostTracker(session_factory=get_session_factory(engine))
     app.state.semantic_cache = SemanticCacheService(
         similarity_threshold=settings.CACHE_SIMILARITY_THRESHOLD,
         ttl_hours=settings.CACHE_TTL_HOURS,
         settings=settings,
+        session_factory=get_session_factory(engine),
     )
     app.state.settings = settings
     logger.info("startup_services_ready")

@@ -21,8 +21,29 @@ from typing import Any
 
 import httpx
 import structlog
+from tenacity import (
+    retry,
+    retry_if_exception_message,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 logger = structlog.get_logger(__name__)
+
+
+def _is_retryable_error(error: BaseException) -> bool:
+    """Return True for transient errors that should be retried."""
+    msg = str(error)
+    # Retry rate limits and server errors, NOT client errors (402, 400)
+    return "RATE_LIMITED" in msg or "LLM_PROVIDER_ERROR" in msg
+
+
+_llm_retry = retry(
+    retry=retry_if_exception_message(match=r"RATE_LIMITED|LLM_PROVIDER_ERROR"),
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=1, max=8),
+    reraise=True,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,6 +69,7 @@ class ChatResult:
     raw_message: dict[str, Any] = field(default_factory=dict)
 
 
+@_llm_retry
 async def chat_completion(
     *,
     messages: list[dict],

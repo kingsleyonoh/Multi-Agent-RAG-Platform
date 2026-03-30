@@ -348,7 +348,7 @@ async def sync_chat(
 
     # Budget check — block before spending on LLM call
     user_id = auth["user_id"]
-    if not cost_tracker.check_budget(user_id, settings.DAILY_COST_LIMIT_USD):
+    if not await cost_tracker.check_budget(user_id, settings.DAILY_COST_LIMIT_USD):
         raise HTTPException(
             status_code=429,
             detail="COST_LIMIT_EXCEEDED: Daily budget exhausted",
@@ -417,7 +417,7 @@ async def sync_chat(
         )
 
     # Cost tracking
-    cost_tracker.record_cost(
+    await cost_tracker.record_cost(
         model=model_used,
         tokens_in=tokens_in,
         tokens_out=tokens_out,
@@ -487,14 +487,29 @@ async def streaming_chat(
     session: AsyncSession = Depends(get_db_session),
     settings: Settings = Depends(get_settings_dep),
     auth: dict = Depends(require_api_key),
+    cost_tracker=Depends(get_cost_tracker),
     cache=Depends(get_semantic_cache),
 ) -> StreamingResponse:
     """SSE streaming chat endpoint with full pipeline.
 
     Pre-LLM pipeline (guardrails, cache, retrieval, memory) runs
     before the stream starts. Streams token-by-token as SSE.
+    Budget enforcement and cost tracking are included.
     """
     logger.info("chat_stream_requested", query_len=len(body.query), model=body.model)
+
+    # Budget check — block before spending on LLM call
+    user_id = auth["user_id"]
+    if not await cost_tracker.check_budget(user_id, settings.DAILY_COST_LIMIT_USD):
+        async def _budget_error():
+            yield format_sse({
+                "type": "error",
+                "error": "COST_LIMIT_EXCEEDED: Daily budget exhausted",
+            })
+            yield format_sse({"type": "done"})
+        return StreamingResponse(
+            _budget_error(), media_type="text/event-stream",
+        )
 
     # Pre-LLM pipeline
     ctx = await _prepare_chat_context(
@@ -510,13 +525,35 @@ async def streaming_chat(
             _cached_stream(), media_type="text/event-stream",
         )
 
+    # Accumulate response for post-stream cost tracking
+    accumulated_text: list[str] = []
+
     async def _event_generator():
         async for event in stream_chat_completion(
             messages=ctx.messages,
             model=ctx.model,
             settings=settings,
         ):
+            # Buffer content tokens for post-stream tracking
+            if isinstance(event, dict) and event.get("token"):
+                accumulated_text.append(event["token"])
             yield format_sse(event)
+
+    async def _post_stream_tasks() -> None:
+        """Record cost after stream completes."""
+        response_text = "".join(accumulated_text)
+        # Estimate tokens (~4 chars per token)
+        est_tokens_out = max(len(response_text) // 4, 1)
+        est_cost = est_tokens_out * 0.000002  # rough gpt-4o-mini rate
+        await cost_tracker.record_cost(
+            model=ctx.model,
+            tokens_in=0,
+            tokens_out=est_tokens_out,
+            cost_usd=est_cost,
+            user_id=user_id,
+        )
+
+    background_tasks.add_task(_post_stream_tasks)
 
     return StreamingResponse(
         _event_generator(),
