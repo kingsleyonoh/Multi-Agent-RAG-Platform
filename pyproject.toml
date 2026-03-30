@@ -31,6 +31,7 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 markers = [
     "integration: marks tests that hit real local services (PostgreSQL, Neo4j, Redis)",
+    "e2e: marks end-to-end journey tests against live server with real LLM calls",
 ]
 
 [build-system]

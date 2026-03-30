@@ -35,6 +35,7 @@ from src.api.routes.search import router as search_router
 from src.agents.tools.query_graph import init_query_graph
 from src.agents.tools.search_kb import init_search_kb
 from src.agents.tools.summarize import init_summarize
+from src.ingestion.entity_extractor import init_entity_extractor
 from src.cache.semantic import SemanticCache as SemanticCacheService
 from src.config import get_settings
 from src.db.models import Base
@@ -141,11 +142,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.settings = settings
     logger.info("startup_services_ready")
 
-    # Wire agent tools to live infrastructure
+    # Wire agent tools and ingestion to live infrastructure
     init_search_kb(get_session_factory(engine), settings)
     init_query_graph(neo4j_driver)
     init_summarize(settings)
     init_graph_search(neo4j_driver)
+    init_entity_extractor(neo4j_driver)
     logger.info("startup_tools_initialized")
 
     yield

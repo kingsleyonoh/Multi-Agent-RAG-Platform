@@ -346,6 +346,14 @@ async def sync_chat(
     """
     logger.info("chat_sync_requested", query_len=len(body.query), model=body.model)
 
+    # Budget check — block before spending on LLM call
+    user_id = auth["user_id"]
+    if not cost_tracker.check_budget(user_id, settings.DAILY_COST_LIMIT_USD):
+        raise HTTPException(
+            status_code=429,
+            detail="COST_LIMIT_EXCEEDED: Daily budget exhausted",
+        )
+
     # Pre-LLM pipeline
     ctx = await _prepare_chat_context(
         body=body, session=session, settings=settings, cache=cache,
