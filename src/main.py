@@ -32,6 +32,9 @@ from src.api.routes.health import health_router
 from src.api.routes.metrics import router as metrics_router
 from src.api.routes.prompts import router as prompts_router
 from src.api.routes.search import router as search_router
+from src.agents.tools.query_graph import init_query_graph
+from src.agents.tools.search_kb import init_search_kb
+from src.agents.tools.summarize import init_summarize
 from src.cache.semantic import SemanticCache as SemanticCacheService
 from src.config import get_settings
 from src.db.models import Base
@@ -41,9 +44,10 @@ from src.db.neo4j import (
     init_constraints as init_neo4j_constraints,
     verify_connectivity as verify_neo4j,
 )
-from src.db.postgres import dispose_engine, get_engine, init_pgvector
+from src.db.postgres import dispose_engine, get_engine, get_session_factory, init_pgvector
 from src.db.redis import close_client as close_redis, get_client as get_redis_client
 from src.llm.cost_tracker import CostTracker
+from src.retrieval.graph_search import init_graph_search
 
 logger = structlog.get_logger(__name__)
 
@@ -132,9 +136,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.semantic_cache = SemanticCacheService(
         similarity_threshold=settings.CACHE_SIMILARITY_THRESHOLD,
         ttl_hours=settings.CACHE_TTL_HOURS,
+        settings=settings,
     )
     app.state.settings = settings
     logger.info("startup_services_ready")
+
+    # Wire agent tools to live infrastructure
+    init_search_kb(get_session_factory(engine), settings)
+    init_query_graph(neo4j_driver)
+    init_summarize(settings)
+    init_graph_search(neo4j_driver)
+    logger.info("startup_tools_initialized")
 
     yield
 

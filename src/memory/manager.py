@@ -8,7 +8,7 @@ Usage::
     from src.memory.manager import MemoryManager
 
     mm = MemoryManager(window_size=20)
-    ctx = mm.build_context(messages)
+    ctx = await mm.build_context(messages)
 """
 
 from __future__ import annotations
@@ -39,19 +39,28 @@ class MemoryManager:
 
     Args:
         window_size: Messages to keep in short-term window.
+        settings: App settings for LLM-backed summarisation.
+        neo4j_driver: Neo4j driver for entity storage.
     """
 
-    def __init__(self, window_size: int = 20) -> None:
+    def __init__(
+        self,
+        window_size: int = 20,
+        *,
+        settings=None,
+        neo4j_driver=None,
+    ) -> None:
         self.short_term = ShortTermMemory(window_size=window_size)
-        self.long_term = LongTermMemory()
-        self.entity_memory = EntityMemory()
+        self.long_term = LongTermMemory(settings=settings)
+        self.entity_memory = EntityMemory(neo4j_driver=neo4j_driver)
 
-    def build_context(self, messages: list[Any]) -> MemoryContext:
+    async def build_context(self, messages: list[Any]) -> MemoryContext:
         """Build full memory context from conversation messages.
 
         1. Trim messages to short-term window.
         2. Extract entities from the trimmed messages.
         3. Generate entity context string.
+        4. Summarise older messages (async via LLM when wired).
 
         Args:
             messages: Full conversation history.
@@ -76,7 +85,7 @@ class MemoryManager:
         summary = None
         if len(messages) > len(recent):
             older = messages[: len(messages) - len(recent)]
-            summary = self.long_term.summarize(older)
+            summary = await self.long_term.summarize(older)
 
         logger.debug(
             "memory_context_built",

@@ -271,6 +271,8 @@ class TestChatRoute:
     @pytest.mark.asyncio
     async def test_sync_chat_returns_response(self) -> None:
         """POST /api/chat/sync with mocked LLM → valid response."""
+        from src.agents.executor import ExecutorResult
+
         # Mock embedding
         respx.post("https://openrouter.ai/api/v1/embeddings").mock(
             return_value=Response(
@@ -278,24 +280,30 @@ class TestChatRoute:
                 json={"data": [{"embedding": [0.1] * 1536, "index": 0}]},
             )
         )
-        # Mock chat completion
-        respx.post("https://openrouter.ai/api/v1/chat/completions").mock(
-            return_value=Response(
-                200,
-                json={
-                    "choices": [{"message": {"content": "RAG retrieves context."}}],
-                    "model": "openai/gpt-4o-mini",
-                    "usage": {"prompt_tokens": 20, "completion_tokens": 10},
-                },
-            )
-        )
 
         app = _test_app()
         transport = ASGITransport(app=app)
+
+        mock_exec_result = ExecutorResult(
+            answer="RAG retrieves context.",
+            tool_calls=[],
+            total_steps=1,
+            model_used="openai/gpt-4o-mini",
+            tokens_in=20,
+            tokens_out=10,
+            cost_usd=0.001,
+        )
+
         with patch(
-            "src.api.routes.chat.vector_search",
+            "src.api.routes.chat.AgentExecutor",
+        ) as MockExecutorClass, patch(
+            "src.retrieval.engine.vector_search_fn",
             new=AsyncMock(return_value=[]),
         ):
+            mock_instance = AsyncMock()
+            mock_instance.run = AsyncMock(return_value=mock_exec_result)
+            MockExecutorClass.return_value = mock_instance
+
             async with AsyncClient(transport=transport, base_url="http://test") as client:
                 resp = await client.post(
                     "/api/chat/sync",

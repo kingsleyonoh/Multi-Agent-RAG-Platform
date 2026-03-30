@@ -199,7 +199,8 @@ def test_criterion_6_guardrails_block_injection():
 # ── Criterion 7: Semantic cache serves without LLM calls ────────────
 
 
-def test_criterion_7_semantic_cache_hit():
+@pytest.mark.asyncio
+async def test_criterion_7_semantic_cache_hit():
     """Semantic cache serves repeated queries without LLM calls."""
     from src.cache.semantic import SemanticCache
 
@@ -210,10 +211,10 @@ def test_criterion_7_semantic_cache_hit():
     cache.store(query="What is RAG?", response="RAG is ...", embedding=embedding)
 
     # Patch _embed_query to return the same embedding (simulating same query)
-    cache._embed_query = lambda q: embedding  # noqa: ARG005
+    cache._embed_query = AsyncMock(return_value=embedding)
 
     # Lookup should hit — no LLM call needed
-    hit = cache.lookup("What is RAG?")
+    hit = await cache.lookup("What is RAG?")
     assert hit is not None, "Expected cache hit for identical query"
     assert hit["response"] == "RAG is ..."
     assert hit["similarity"] >= 0.95
@@ -227,7 +228,8 @@ def test_criterion_7_semantic_cache_hit():
 # ── Criterion 8: Knowledge graph enriches retrieval ──────────────────
 
 
-def test_criterion_8_knowledge_graph_enriches():
+@pytest.mark.asyncio
+async def test_criterion_8_knowledge_graph_enriches():
     """Knowledge graph enriches retrieval results with entity relationships."""
     from src.retrieval.graph_search import GraphResult, search_graph
 
@@ -237,8 +239,8 @@ def test_criterion_8_knowledge_graph_enriches():
         {"entity": "Python", "chunk_id": "chunk-002"},
     ]
 
-    with patch("src.retrieval.graph_search._run_cypher", return_value=fake_rows):
-        results = search_graph(query_entities=["Python"])
+    with patch("src.retrieval.graph_search._run_cypher", new_callable=AsyncMock, return_value=fake_rows):
+        results = await search_graph(query_entities=["Python"])
 
     assert len(results) == 1
     assert isinstance(results[0], GraphResult)

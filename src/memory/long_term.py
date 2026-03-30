@@ -8,7 +8,7 @@ Usage::
     from src.memory.long_term import LongTermMemory
 
     ltm = LongTermMemory()
-    summary = ltm.summarize(old_messages)
+    summary = await ltm.summarize(old_messages)
     ltm.store_summary("conv_id", summary)
 """
 
@@ -24,24 +24,33 @@ logger = structlog.get_logger(__name__)
 class LongTermMemory:
     """Summarise and store older conversation messages."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, settings=None) -> None:
         self._summaries: dict[str, str] = {}
+        self._settings = settings
 
     # ── Testable seam ────────────────────────────────────────────────
 
-    @staticmethod
-    def _call_llm(prompt: str) -> str:
-        """Seam for LLM summarisation calls.
+    async def _call_llm(self, prompt: str) -> str:
+        """Call LLM for summarisation.
 
-        Override in tests or wire to real provider.
-        Returns a simple extractive summary by default.
+        Uses ``routed_chat_completion`` when settings are available.
+        Falls back to truncated prompt otherwise.
         """
-        # Default: concatenate first 200 chars of each message
-        return prompt[:500] if prompt else ""
+        if self._settings is None:
+            return prompt[:500] if prompt else ""
+
+        from src.llm.router import routed_chat_completion
+
+        result = await routed_chat_completion(
+            messages=[{"role": "user", "content": prompt}],
+            task_type="summarization",
+            settings=self._settings,
+        )
+        return result.content
 
     # ── Public API ───────────────────────────────────────────────────
 
-    def summarize(self, messages: list[Any]) -> str:
+    async def summarize(self, messages: list[Any]) -> str:
         """Summarise a list of messages into a short text.
 
         Args:
@@ -60,7 +69,7 @@ class LongTermMemory:
         )
 
         prompt = f"Summarize this conversation concisely:\n\n{transcript}"
-        summary = self._call_llm(prompt)
+        summary = await self._call_llm(prompt)
         logger.debug("long_term_summarized", message_count=len(messages))
         return summary
 

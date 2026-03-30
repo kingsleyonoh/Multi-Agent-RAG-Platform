@@ -66,18 +66,20 @@ class TestShortTermMemory:
 class TestLongTermMemory:
     """Summarize older messages for conversation continuity."""
 
-    def test_summarize_produces_text(self):
+    @pytest.mark.asyncio
+    async def test_summarize_produces_text(self):
         from src.memory.long_term import LongTermMemory
-        ltm = LongTermMemory()
+        ltm = LongTermMemory()  # no settings → fallback
         messages = _make_messages(5)
-        summary = ltm.summarize(messages)
+        summary = await ltm.summarize(messages)
         assert isinstance(summary, str)
         assert len(summary) > 0
 
-    def test_summarize_empty_messages(self):
+    @pytest.mark.asyncio
+    async def test_summarize_empty_messages(self):
         from src.memory.long_term import LongTermMemory
         ltm = LongTermMemory()
-        summary = ltm.summarize([])
+        summary = await ltm.summarize([])
         assert summary == ""
 
     def test_store_and_retrieve_summary(self):
@@ -134,27 +136,30 @@ class TestEntityMemory:
 class TestMemoryManager:
     """Orchestrate short-term + long-term + entity memory."""
 
-    def test_build_context_returns_memory_context(self):
+    @pytest.mark.asyncio
+    async def test_build_context_returns_memory_context(self):
         from src.memory.manager import MemoryManager
         mm = MemoryManager()
         messages = _make_messages(5)
-        ctx = mm.build_context(messages)
+        ctx = await mm.build_context(messages)
         assert hasattr(ctx, "context_messages")
         assert hasattr(ctx, "entity_context")
 
-    def test_build_context_trims_messages(self):
+    @pytest.mark.asyncio
+    async def test_build_context_trims_messages(self):
         from src.memory.manager import MemoryManager
         mm = MemoryManager(window_size=3)
         messages = _make_messages(10)
-        ctx = mm.build_context(messages)
+        ctx = await mm.build_context(messages)
         assert len(ctx.context_messages) == 3
 
-    def test_build_context_includes_entities(self):
+    @pytest.mark.asyncio
+    async def test_build_context_includes_entities(self):
         from src.memory.manager import MemoryManager
 
         messages = [
             FakeMessage(role="user", content="Tell me about Google's products."),
         ]
         mm = MemoryManager(window_size=20)
-        ctx = mm.build_context(messages)
+        ctx = await mm.build_context(messages)
         assert isinstance(ctx.entity_context, str)

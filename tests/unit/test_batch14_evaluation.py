@@ -144,9 +144,22 @@ class TestMetricsAPIEndpoints:
 
     @pytest.fixture()
     def client(self):
+        from unittest.mock import AsyncMock, MagicMock
+        from src.api.dependencies import get_db_session
         from src.llm.cost_tracker import CostTracker
+
         app = FastAPI()
         app.state.cost_tracker = CostTracker()
+
+        # Mock DB session that returns empty results for quality query
+        async def mock_db_session():
+            session = AsyncMock()
+            mock_result = MagicMock()
+            mock_result.all.return_value = []
+            session.execute.return_value = mock_result
+            yield session
+
+        app.dependency_overrides[get_db_session] = mock_db_session
         app.include_router(metrics_router, prefix="/api/metrics")
         return TestClient(app)
 
@@ -162,3 +175,4 @@ class TestMetricsAPIEndpoints:
         data = resp.json()
         assert "avg_relevance" in data
         assert "avg_faithfulness" in data
+

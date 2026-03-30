@@ -1,4 +1,4 @@
-"""Conversation CRUD API routes.
+"""Conversation CRUD API routes — PostgreSQL-backed.
 
 Provides endpoints for managing conversations and messages:
 - POST   /api/conversations            → create conversation
@@ -16,11 +16,16 @@ Usage::
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
 
 import structlog
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from src.api.dependencies import get_db_session
+from src.db.models import Conversation, Message
 
 logger = structlog.get_logger(__name__)
 
@@ -74,46 +79,66 @@ class MessageResponse(BaseModel):
     created_at: str
 
 
-# ── In-memory store (swap to DB in wiring phase) ───────────────────
+# ── Helpers ────────────────────────────────────────────────────────
 
 
-_conversations: dict[str, dict] = {}
-_messages: dict[str, list[dict]] = {}
+def _conv_to_dict(conv: Conversation) -> dict:
+    """Serialise a Conversation ORM instance to a response dict."""
+    return {
+        "id": str(conv.id),
+        "user_id": conv.user_id,
+        "title": conv.title,
+        "model_preference": conv.model_preference,
+        "total_tokens": conv.total_tokens,
+        "total_cost_usd": float(conv.total_cost_usd),
+        "created_at": str(conv.created_at),
+        "updated_at": str(conv.updated_at),
+    }
 
 
-def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+def _msg_to_dict(msg: Message) -> dict:
+    """Serialise a Message ORM instance to a response dict."""
+    return {
+        "id": str(msg.id),
+        "conversation_id": str(msg.conversation_id),
+        "role": msg.role,
+        "content": msg.content,
+        "model_used": msg.model_used,
+        "tokens_in": msg.tokens_in,
+        "tokens_out": msg.tokens_out,
+        "created_at": str(msg.created_at),
+    }
 
 
 # ── Endpoints ──────────────────────────────────────────────────────
 
 
 @router.post("", status_code=201)
-async def create_conversation(body: CreateConversationRequest) -> dict:
+async def create_conversation(
+    body: CreateConversationRequest,
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
     """Create a new conversation.
 
     Returns the created conversation with an assigned ID.
     """
-    conv_id = str(uuid.uuid4())
-    now = _now_iso()
-    conv = {
-        "id": conv_id,
-        "user_id": body.user_id,
-        "title": body.title,
-        "model_preference": body.model_preference,
-        "total_tokens": 0,
-        "total_cost_usd": 0.0,
-        "created_at": now,
-        "updated_at": now,
-    }
-    _conversations[conv_id] = conv
-    _messages[conv_id] = []
-    logger.info("conversation_created", id=conv_id, user_id=body.user_id)
-    return conv
+    conv = Conversation(
+        user_id=body.user_id,
+        title=body.title,
+        model_preference=body.model_preference,
+    )
+    session.add(conv)
+    await session.commit()
+    await session.refresh(conv)
+    logger.info("conversation_created", id=str(conv.id), user_id=body.user_id)
+    return _conv_to_dict(conv)
 
 
 @router.get("")
-async def list_conversations(user_id: str) -> list[dict]:
+async def list_conversations(
+    user_id: str,
+    session: AsyncSession = Depends(get_db_session),
+) -> list[dict]:
     """List conversations for a user.
 
     Args:
@@ -122,14 +147,21 @@ async def list_conversations(user_id: str) -> list[dict]:
     Returns:
         List of conversation dicts.
     """
-    return [
-        c for c in _conversations.values()
-        if c["user_id"] == user_id
-    ]
+    stmt = (
+        select(Conversation)
+        .where(Conversation.user_id == user_id)
+        .order_by(Conversation.updated_at.desc())
+    )
+    result = await session.execute(stmt)
+    rows = result.scalars().all()
+    return [_conv_to_dict(c) for c in rows]
 
 
 @router.get("/{conversation_id}")
-async def get_conversation(conversation_id: str) -> dict:
+async def get_conversation(
+    conversation_id: str,
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
     """Get a conversation with its messages.
 
     Args:
@@ -141,14 +173,31 @@ async def get_conversation(conversation_id: str) -> dict:
     Raises:
         HTTPException: 404 if conversation not found.
     """
-    conv = _conversations.get(conversation_id)
+    try:
+        conv_uuid = uuid.UUID(conversation_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="Conversation not found") from exc
+
+    stmt = (
+        select(Conversation)
+        .options(selectinload(Conversation.messages))
+        .where(Conversation.id == conv_uuid)
+    )
+    result = await session.execute(stmt)
+    conv = result.scalar_one_or_none()
     if conv is None:
         raise HTTPException(status_code=404, detail="Conversation not found")
-    return {**conv, "messages": _messages.get(conversation_id, [])}
+
+    data = _conv_to_dict(conv)
+    data["messages"] = [_msg_to_dict(m) for m in conv.messages]
+    return data
 
 
 @router.delete("/{conversation_id}", status_code=204)
-async def delete_conversation(conversation_id: str) -> None:
+async def delete_conversation(
+    conversation_id: str,
+    session: AsyncSession = Depends(get_db_session),
+) -> None:
     """Delete a conversation and its messages.
 
     Args:
@@ -157,15 +206,26 @@ async def delete_conversation(conversation_id: str) -> None:
     Raises:
         HTTPException: 404 if conversation not found.
     """
-    if conversation_id not in _conversations:
+    try:
+        conv_uuid = uuid.UUID(conversation_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="Conversation not found") from exc
+
+    conv = await session.get(Conversation, conv_uuid)
+    if conv is None:
         raise HTTPException(status_code=404, detail="Conversation not found")
-    del _conversations[conversation_id]
-    _messages.pop(conversation_id, None)
+
+    await session.delete(conv)
+    await session.commit()
     logger.info("conversation_deleted", id=conversation_id)
 
 
 @router.post("/{conversation_id}/messages", status_code=201)
-async def add_message(conversation_id: str, body: AddMessageRequest) -> dict:
+async def add_message(
+    conversation_id: str,
+    body: AddMessageRequest,
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
     """Add a message to a conversation.
 
     Args:
@@ -178,29 +238,33 @@ async def add_message(conversation_id: str, body: AddMessageRequest) -> dict:
     Raises:
         HTTPException: 404 if conversation not found.
     """
-    if conversation_id not in _conversations:
+    try:
+        conv_uuid = uuid.UUID(conversation_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="Conversation not found") from exc
+
+    conv = await session.get(Conversation, conv_uuid)
+    if conv is None:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
-    msg_id = str(uuid.uuid4())
-    msg = {
-        "id": msg_id,
-        "conversation_id": conversation_id,
-        "role": body.role,
-        "content": body.content,
-        "model_used": body.model_used,
-        "tokens_in": body.tokens_in,
-        "tokens_out": body.tokens_out,
-        "created_at": _now_iso(),
-    }
-    _messages[conversation_id].append(msg)
+    msg = Message(
+        conversation_id=conv_uuid,
+        role=body.role,
+        content=body.content,
+        model_used=body.model_used,
+        tokens_in=body.tokens_in,
+        tokens_out=body.tokens_out,
+    )
+    session.add(msg)
 
     # Update conversation stats
-    conv = _conversations[conversation_id]
     if body.tokens_in:
-        conv["total_tokens"] += body.tokens_in
+        conv.total_tokens += body.tokens_in
     if body.tokens_out:
-        conv["total_tokens"] += body.tokens_out
-    conv["updated_at"] = _now_iso()
+        conv.total_tokens += body.tokens_out
+
+    await session.commit()
+    await session.refresh(msg)
 
     logger.info("message_added", conversation_id=conversation_id, role=body.role)
-    return msg
+    return _msg_to_dict(msg)

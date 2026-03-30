@@ -16,14 +16,48 @@ import structlog
 
 logger = structlog.get_logger(__name__)
 
+# ── Module-level state (set by init_search_kb at startup) ────────
+
+_session_factory = None
+_settings = None
+
+
+def init_search_kb(session_factory, settings) -> None:
+    """Wire search_kb to real infrastructure.
+
+    Called once at app startup from ``main.py`` lifespan.
+    """
+    global _session_factory, _settings
+    _session_factory = session_factory
+    _settings = settings
+    logger.info("search_kb_initialized")
+
 
 async def _do_search(query: str, top_k: int) -> list:
-    """Execute vector search. Separated for testability.
+    """Execute vector search via embed + pgvector.
 
-    In production, this calls the full embedding + search pipeline.
+    Gracefully returns empty list when infrastructure is not wired.
     """
-    # Placeholder — requires DB session and embedder wiring
-    return []
+    if _session_factory is None or _settings is None:
+        logger.debug("search_kb_not_wired")
+        return []
+
+    from src.ingestion.embedder import embed_texts
+    from src.retrieval.vector_search import search
+
+    embeddings = await embed_texts(
+        texts=[query],
+        base_url=_settings.OPENROUTER_BASE_URL,
+        api_key=_settings.OPENROUTER_API_KEY,
+        model=_settings.EMBEDDING_MODEL,
+    )
+    async with _session_factory() as session:
+        return await search(
+            session=session,
+            query_embedding=embeddings[0],
+            top_k=top_k,
+            threshold=_settings.SIMILARITY_THRESHOLD,
+        )
 
 
 async def search_kb(*, query: str, top_k: int = 10) -> list[dict[str, Any]]:

@@ -14,14 +14,46 @@ import structlog
 
 logger = structlog.get_logger(__name__)
 
+# ── Module-level state (set by init_summarize at startup) ────────
+
+_settings = None
+
+
+def init_summarize(settings) -> None:
+    """Wire summarize to a live LLM via routed_chat_completion.
+
+    Called once at app startup from ``main.py`` lifespan.
+    """
+    global _settings
+    _settings = settings
+    logger.info("summarize_tool_initialized")
+
 
 async def _call_llm(content: str) -> str:
-    """Call LLM for summarization. Separated for testability.
+    """Call LLM for summarization.
 
-    In production, this calls ``routed_chat_completion`` with task_type="summarization".
+    Uses ``routed_chat_completion`` with task_type="summarization"
+    when wired. Falls back to a length-based placeholder otherwise.
     """
-    # Placeholder — requires settings and LLM wiring
-    return f"Summary of {len(content)} characters of content."
+    if _settings is None:
+        logger.debug("summarize_not_wired")
+        return f"Summary of {len(content)} characters of content."
+
+    from src.llm.router import routed_chat_completion
+
+    result = await routed_chat_completion(
+        messages=[
+            {
+                "role": "system",
+                "content": "Summarize the following text concisely. "
+                "Return only the summary, no preamble.",
+            },
+            {"role": "user", "content": content},
+        ],
+        task_type="summarization",
+        settings=_settings,
+    )
+    return result.content
 
 
 async def summarize(*, content: str) -> str:

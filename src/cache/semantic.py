@@ -8,17 +8,17 @@ cache.
 
 Entries are evicted when their TTL expires or when :func:`invalidate_all`
 is called (e.g. after a new document is ingested).
-
-An LRU helper (:func:`lru_embed`) avoids re-embedding identical query
-strings within the same session.
 """
 
 from __future__ import annotations
 
 import math
 import time
-from functools import lru_cache
 from typing import Any
+
+import structlog
+
+logger = structlog.get_logger(__name__)
 
 
 # ── helpers ──────────────────────────────────────────────────────────
@@ -35,34 +35,11 @@ def _cosine_similarity(a: list[float], b: list[float]) -> float:
     return dot / (norm_a * norm_b)
 
 
-# ── LRU embedding cache ─────────────────────────────────────────────
-
-@lru_cache(maxsize=256)
-def lru_embed(query: str, *, embed_fn: Any = None) -> list[float]:
-    """Return the embedding for *query*, caching repeat calls.
-
-    Parameters
-    ----------
-    query:
-        The text to embed.
-    embed_fn:
-        A callable ``(str) -> list[float]``.  When *None* the internal
-        ``_embed_query`` seam is used.
-    """
-    if embed_fn is None:
-        return _embed_query_default(query)
-    return embed_fn(query)
-
-
-def _embed_query_default(query: str) -> list[float]:
-    """Seam — override in production to call the real embedding API."""
-    return [0.0]
+# ── Estimated cost per LLM call (USD) for cost-saved calculation ──
+_EST_COST_PER_CALL = 0.003
 
 
 # ── SemanticCache ────────────────────────────────────────────────────
-
-# Estimated cost per LLM call (USD) for cost-saved calculation.
-_EST_COST_PER_CALL = 0.003
 
 
 class SemanticCache:
@@ -74,6 +51,9 @@ class SemanticCache:
         Minimum cosine similarity to consider a cache hit (default 0.95).
     ttl_hours:
         Time-to-live for cache entries in hours (default 24).
+    settings:
+        App settings for real embedding via ``embed_texts()``.
+        When ``None``, embeddings return ``[0.0]`` (test mode).
     """
 
     def __init__(
@@ -81,19 +61,21 @@ class SemanticCache:
         *,
         similarity_threshold: float = 0.95,
         ttl_hours: int = 24,
+        settings=None,
     ) -> None:
         self.similarity_threshold = similarity_threshold
         self.ttl_hours = ttl_hours
+        self._settings = settings
         self.entries: list[dict[str, Any]] = []
         self._total_lookups = 0
         self._total_hits = 0
 
     # ── public API ───────────────────────────────────────────────────
 
-    def lookup(self, query: str) -> dict[str, Any] | None:
+    async def lookup(self, query: str) -> dict[str, Any] | None:
         """Return cached response if a similar query exists, else *None*."""
         self._total_lookups += 1
-        query_emb = self._embed_query(query)
+        query_emb = await self._embed_query(query)
         now = time.time()
 
         for entry in self.entries:
@@ -153,6 +135,25 @@ class SemanticCache:
 
     # ── seams (override in tests / production) ───────────────────────
 
-    def _embed_query(self, query: str) -> list[float]:
-        """Seam — override to call real embedding API."""
-        return _embed_query_default(query)
+    async def _embed_query(self, query: str) -> list[float]:
+        """Embed a query string for similarity comparison.
+
+        Uses real ``embed_texts()`` when settings are available.
+        Returns ``[0.0]`` in test/fallback mode.
+        """
+        if self._settings is None:
+            return [0.0]
+
+        from src.ingestion.embedder import embed_texts
+
+        try:
+            embeddings = await embed_texts(
+                texts=[query],
+                base_url=self._settings.OPENROUTER_BASE_URL,
+                api_key=self._settings.OPENROUTER_API_KEY,
+                model=self._settings.EMBEDDING_MODEL,
+            )
+            return embeddings[0]
+        except Exception:
+            logger.warning("cache_embed_failed", exc_info=True)
+            return [0.0]

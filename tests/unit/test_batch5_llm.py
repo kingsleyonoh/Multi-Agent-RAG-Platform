@@ -261,13 +261,25 @@ class TestCostTracker:
 
 def _test_app():
     """Minimal app for endpoint testing."""
+    from unittest.mock import AsyncMock, MagicMock
+
     from src.api.dependencies import get_cost_tracker, get_db_session, get_semantic_cache
     from src.api.middleware.auth import require_api_key
     from src.cache.semantic import SemanticCache
     from src.llm.cost_tracker import CostTracker
     from src.main import create_app
 
+    mock_session = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.scalars.return_value = MagicMock(all=MagicMock(return_value=[]))
+    mock_result.scalar_one_or_none.return_value = None
+    mock_session.execute = AsyncMock(return_value=mock_result)
+
+    async def _db_override():
+        yield mock_session
+
     app = create_app()
+    app.dependency_overrides[get_db_session] = _db_override
     app.dependency_overrides[require_api_key] = lambda: {
         "api_key": "test-key",
         "user_id": "test-user",
@@ -284,6 +296,13 @@ class TestStreamingChatEndpoint:
     @pytest.mark.asyncio
     async def test_streaming_endpoint_exists(self) -> None:
         """POST /api/chat returns a streaming response."""
+        # Mock embedding
+        respx.post("https://openrouter.ai/api/v1/embeddings").mock(
+            return_value=Response(
+                200,
+                json={"data": [{"embedding": [0.1] * 1536, "index": 0}]},
+            )
+        )
         # Mock the streaming LLM call
         sse_body = (
             'data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n'

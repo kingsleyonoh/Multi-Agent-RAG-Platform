@@ -23,14 +23,34 @@ _WRITE_PATTERNS = re.compile(
     re.IGNORECASE,
 )
 
+# ── Module-level state (set by init_query_graph at startup) ──────
+
+_neo4j_driver = None
+
+
+def init_query_graph(neo4j_driver) -> None:
+    """Wire query_graph to a live Neo4j driver.
+
+    Called once at app startup from ``main.py`` lifespan.
+    """
+    global _neo4j_driver
+    _neo4j_driver = neo4j_driver
+    logger.info("query_graph_initialized")
+
 
 async def _execute_cypher(cypher: str) -> list[dict[str, Any]]:
-    """Execute a Cypher query. Separated for testability.
+    """Execute a Cypher query against the live Neo4j instance.
 
-    In production, this uses the Neo4j driver from ``src.db.neo4j``.
+    Gracefully returns empty list when Neo4j is not wired.
     """
-    # Placeholder — requires Neo4j driver wiring
-    return []
+    if _neo4j_driver is None:
+        logger.debug("query_graph_not_wired")
+        return []
+
+    async with _neo4j_driver.session() as session:
+        result = await session.run(cypher)
+        records = await result.data()
+        return records
 
 
 async def query_graph(*, cypher: str) -> list[dict[str, Any]]:

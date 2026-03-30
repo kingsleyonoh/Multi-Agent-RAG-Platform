@@ -59,18 +59,39 @@ _ENTITY_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
 class EntityMemory:
     """Extract named entities and retrieve conversation context."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, neo4j_driver=None) -> None:
         self._entities: dict[str, list[Entity]] = {}
+        self._neo4j_driver = neo4j_driver
 
     # ── Testable seams ───────────────────────────────────────────────
 
-    def _store_entities(self, entities: list[Entity]) -> None:
-        """Seam for Neo4j entity storage. Override in tests."""
-        pass
+    async def _store_entities(self, entities: list[Entity]) -> None:
+        """Store entities in Neo4j. No-op when driver is unavailable."""
+        if self._neo4j_driver is None:
+            return
 
-    def _query_entities(self, entity_values: list[str]) -> list[dict]:
-        """Seam for Neo4j entity lookup. Override in tests."""
-        return []
+        async with self._neo4j_driver.session() as session:
+            for e in entities:
+                await session.run(
+                    "MERGE (e:Entity {value: $value}) "
+                    "SET e.type = $type",
+                    value=e.value,
+                    type=e.type,
+                )
+        logger.debug("entities_stored_neo4j", count=len(entities))
+
+    async def _query_entities(self, entity_values: list[str]) -> list[dict]:
+        """Query entities from Neo4j. Returns empty when not wired."""
+        if self._neo4j_driver is None:
+            return []
+
+        async with self._neo4j_driver.session() as session:
+            result = await session.run(
+                "MATCH (e:Entity) WHERE e.value IN $values "
+                "RETURN e.value AS value, e.type AS type",
+                values=entity_values,
+            )
+            return await result.data()
 
     # ── Public API ───────────────────────────────────────────────────
 
