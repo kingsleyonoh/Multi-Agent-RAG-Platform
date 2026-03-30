@@ -1,81 +1,68 @@
-# Multi-Agent RAG Platform — Production-grade retrieval-augmented generation with knowledge graph enrichment, multi-model routing, and tool-calling agents
+# Multi-Agent RAG Platform — AI backend with hybrid retrieval, multi-model routing, tool-calling agents, and guardrails
 
 Built by [Kingsley Onoh](https://kingsleyonoh.com) · Systems Architect
 
+> **Live:** [https://ai.kingsleyonoh.com](https://ai.kingsleyonoh.com)
+
 ## The Problem
 
-Every team building with LLMs hits the same wall: responses that sound confident but cite nothing, costs that spike unpredictably across models, and no way to know if the answer actually came from your data. Enterprise RAG needs more than a vector database and a prompt — it needs routing intelligence, cost controls, and verifiable grounding. This platform solves that by combining hybrid retrieval (vector + knowledge graph), multi-model routing through a single API key, and automated faithfulness scoring on every response.
+Teams building AI-powered products keep solving the same infrastructure problems: retrieval that actually grounds answers in source documents, model routing that balances cost against quality, safety guardrails that run in the pipeline instead of as an afterthought, and cost tracking that prevents a runaway API bill from hitting $500 overnight. This platform is that infrastructure layer — a single API that ingests documents, retrieves context via hybrid search (vector + keyword + knowledge graph), routes to the best model for the task through OpenRouter, executes tool calls when the LLM needs them, and scores every response for faithfulness before it reaches the user.
 
 ## Architecture
 
 ```mermaid
 %%{init: {'theme':'base','themeVariables':{'primaryColor':'#3B82F6','primaryTextColor':'#F0F0F5','primaryBorderColor':'#3B82F6','lineColor':'#3B82F6','secondaryColor':'#141418','tertiaryColor':'#0D0D0F','background':'#0D0D0F','mainBkg':'#141418','nodeBorder':'#3B82F6','clusterBkg':'#0D0D0F','clusterBorder':'#33333F','titleColor':'#F0F0F5','edgeLabelBackground':'#141418'}}}%%
 graph TB
-    API["FastAPI Gateway"]
+    CLIENT["Client"] --> API["FastAPI Gateway"]
 
-    subgraph Ingestion
-        INGEST["Document Pipeline"]
-        CHUNK["Chunker + Embedder"]
-    end
-
-    subgraph Retrieval
-        VECTOR["pgvector Search"]
-        GRAPH["Neo4j Graph Search"]
-        RERANK["Hybrid Reranker"]
-    end
-
-    subgraph Intelligence
-        ROUTER["Multi-Model Router"]
-        AGENT["Agent Executor"]
-        TOOLS["Tool Registry"]
+    subgraph Pipeline ["Request Pipeline"]
+        GUARD_IN["Input Guardrails"]
         CACHE["Semantic Cache"]
+        RETRIEVAL["Hybrid Retrieval"]
+        MEMORY["Memory Manager"]
+        AGENT["Agent Executor"]
+        GUARD_OUT["Output Guardrails"]
     end
 
-    subgraph Safety
-        INJECT["Injection Detection"]
-        HALLUC["Hallucination Check"]
-        COST["Cost Tracker"]
+    subgraph Models ["LLM Layer"]
+        ROUTER["Model Router"]
+        OPENROUTER["OpenRouter API"]
     end
 
-    subgraph Storage
+    subgraph Storage ["Data Layer"]
         PG["PostgreSQL + pgvector"]
         NEO["Neo4j"]
         REDIS["Redis"]
     end
 
-    API --> INGEST --> CHUNK --> PG
-    CHUNK --> NEO
-    API --> VECTOR --> RERANK
-    API --> GRAPH --> RERANK
-    RERANK --> ROUTER
-    ROUTER --> AGENT --> TOOLS
-    ROUTER --> CACHE
+    API --> GUARD_IN --> CACHE --> RETRIEVAL
+    RETRIEVAL --> MEMORY --> AGENT --> GUARD_OUT
+    AGENT --> ROUTER --> OPENROUTER
     CACHE --> REDIS
-    API --> INJECT
-    ROUTER --> HALLUC
-    ROUTER --> COST
-    VECTOR --> PG
-    GRAPH --> NEO
+    RETRIEVAL --> PG
+    RETRIEVAL --> NEO
+    MEMORY --> PG
+    GUARD_OUT --> API
 ```
 
 ## Key Decisions
 
-- **I chose OpenRouter over direct provider SDKs** because a single API key routes to OpenAI, Anthropic, Google, and DeepSeek with automatic fallback. One integration instead of four, and model switching is a config change, not a code change.
+- I chose OpenRouter over direct OpenAI/Anthropic SDKs because a single API key gives access to 200+ models. Switching from GPT-4o to Claude 3.5 Sonnet is a config change, not a code change. The routing table maps task types (chat, summarization, evaluation) to the best model for the job.
 
-- **I chose pgvector over Pinecone or Weaviate** because the embeddings live alongside the relational data in PostgreSQL. No network hop for similarity search, no separate service to manage, and the same backup strategy covers everything.
+- I chose a pure Python ReAct loop over LangGraph because the agent executor handles at most 5 tool calls per turn. A state machine framework adds dependency weight and debugging complexity without proportional value at this scale.
 
-- **I chose Neo4j for knowledge graph over a pure vector approach** because entity relationships (person→works_at→company) add retrieval context that cosine similarity alone misses. The hybrid reranker weights vector similarity at 0.7 and graph relevance at 0.1 — measurably better recall on multi-entity queries.
+- I chose PostgreSQL + pgvector over a dedicated vector database (Pinecone, Weaviate) because one database handles relational data, vector embeddings, and the semantic cache. No network hop for similarity search, one backup strategy, one fewer service to manage.
 
-- **I chose regex-based injection detection over an LLM-as-judge** because it runs in <1ms per request with zero cost. The weighted pattern scoring hits >90% accuracy on standard injection benchmarks, and adding new patterns is a config change.
+- I chose hybrid retrieval (vector + keyword + graph reranking) over vector-only search because embedding similarity misses exact keyword matches and entity relationships. The reranker weights vector at 0.7, keyword at 0.2, and graph at 0.1 — measurably better recall on multi-entity queries.
 
-- **I chose Redis semantic cache with a 0.95 similarity threshold** over exact-match caching because near-duplicate queries ("What is RAG?" vs "What's RAG?") should return cached results. At 0.95, false positives are negligible and cache hit rates are meaningful.
+- I chose to exclude Neo4j from the production Docker Compose on a 1GB VPS because Neo4j's JVM heap would starve the app container. Graph search degrades gracefully to empty results when Neo4j is unavailable — the system works without it, it just works better with it.
 
 ## Setup
 
 ### Prerequisites
 
 - Python 3.12+
-- Docker and Docker Compose (for PostgreSQL + pgvector, Neo4j, Redis)
+- Docker and Docker Compose (for PostgreSQL 16 + pgvector, Neo4j 5.x, Redis 7)
 - An [OpenRouter](https://openrouter.ai) API key
 
 ### Installation
@@ -96,14 +83,21 @@ cp .env.example .env
 
 | Variable | Description |
 |----------|-------------|
-| `DATABASE_URL` | PostgreSQL connection string (asyncpg) |
-| `NEO4J_URI` | Neo4j Bolt connection URI |
+| `OPENROUTER_API_KEY` | API key from OpenRouter — routes to all LLM providers |
+| `DATABASE_URL` | PostgreSQL + asyncpg connection string |
+| `NEO4J_URI` | Neo4j Bolt URI (default: `bolt://localhost:7687`) |
+| `NEO4J_USER` / `NEO4J_PASSWORD` | Neo4j credentials |
 | `REDIS_URL` | Redis connection URL |
-| `OPENROUTER_API_KEY` | OpenRouter API key (routes to all LLM providers) |
-| `DAILY_COST_LIMIT_USD` | Per-user daily spending cap (default: $10) |
-| `CHUNK_SIZE` | Document chunk size in tokens (default: 512) |
-| `SIMILARITY_THRESHOLD` | Minimum cosine similarity for retrieval (default: 0.7) |
-| `GUARDRAIL_INJECTION_THRESHOLD` | Injection detection sensitivity (default: 0.8) |
+| `API_KEYS` | Comma-separated API keys for client authentication |
+| `DAILY_COST_LIMIT_USD` | Per-user daily LLM spending cap (default: `10.00`) |
+| `DEFAULT_MODEL` | Default chat model (default: `openai/gpt-4o-mini`) |
+| `EMBEDDING_MODEL` | Embedding model (default: `openai/text-embedding-3-small`) |
+| `CHUNK_SIZE` | Tokens per document chunk (default: `512`) |
+| `SIMILARITY_THRESHOLD` | Minimum cosine similarity for retrieval (default: `0.7`) |
+| `CACHE_SIMILARITY_THRESHOLD` | Semantic cache match threshold (default: `0.95`) |
+| `GUARDRAIL_INJECTION_THRESHOLD` | Injection detection sensitivity (default: `0.8`) |
+| `GUARDRAIL_PII_MODE` | PII handling: `flag`, `block`, or `redact` |
+| `DEMO_MODE` | Enable public demo protections — stricter rate limits and cost caps |
 
 ### Run
 
@@ -111,41 +105,142 @@ cp .env.example .env
 # Start infrastructure
 docker compose up -d
 
-# Run the API server
-uvicorn src.main:app --host 0.0.0.0 --port 8008 --reload
+# Run migrations
+alembic upgrade head
+
+# Start the API server
+uvicorn src.main:app --reload
 ```
 
 ## Usage
 
+All endpoints except `/api/health` require an `X-API-Key` header.
+
+### Check system health
+
 ```bash
-# Ingest a document
-curl -X POST http://localhost:8008/api/documents/ingest \
-  -H "X-API-Key: dev-key-1" \
-  -F "file=@document.pdf"
+curl https://ai.kingsleyonoh.com/api/health
+```
 
-# Chat with your knowledge base
-curl -X POST http://localhost:8008/api/chat \
-  -H "X-API-Key: dev-key-1" \
+```json
+{
+  "status": "healthy",
+  "services": {
+    "postgresql": "connected",
+    "neo4j": "connected",
+    "redis": "connected",
+    "llm": "reachable"
+  }
+}
+```
+
+### Ingest a document
+
+```bash
+curl -X POST https://ai.kingsleyonoh.com/api/documents \
+  -H "X-API-Key: your-api-key" \
+  -F "file=@report.pdf"
+```
+
+```json
+{
+  "id": "a1b2c3d4-...",
+  "title": "report.pdf",
+  "source": "upload",
+  "status": "embedded",
+  "chunk_count": 12,
+  "content_hash": "sha256:..."
+}
+```
+
+### Search the knowledge base
+
+```bash
+curl -X POST https://ai.kingsleyonoh.com/api/search \
+  -H "X-API-Key: your-api-key" \
   -H "Content-Type: application/json" \
-  -d '{"message": "What does the document say about system design?"}'
+  -d '{"query": "What is retrieval-augmented generation?", "top_k": 5}'
+```
 
-# Check system health
-curl http://localhost:8008/health
+```json
+{
+  "results": [
+    {
+      "chunk_id": "...",
+      "document_id": "...",
+      "content": "RAG combines retrieval with generation...",
+      "score": 0.89,
+      "document_title": "report.pdf",
+      "document_source": "upload"
+    }
+  ],
+  "query": "What is retrieval-augmented generation?",
+  "total": 5
+}
+```
 
-# View cost tracking
-curl http://localhost:8008/api/metrics \
-  -H "X-API-Key: dev-key-1"
+### Chat with RAG context
+
+```bash
+curl -X POST https://ai.kingsleyonoh.com/api/chat/sync \
+  -H "X-API-Key: your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "What does the document say about system design?"}'
+```
+
+```json
+{
+  "response": "Based on the retrieved context, the document describes...",
+  "sources": [
+    {"document_title": "report.pdf", "content": "...", "score": 0.91}
+  ],
+  "model_used": "openai/gpt-4o-mini",
+  "cost": 0.0003,
+  "conversation_id": null
+}
+```
+
+### Stream a response (SSE)
+
+```bash
+curl -N -X POST https://ai.kingsleyonoh.com/api/chat \
+  -H "X-API-Key: your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "Explain the architecture", "model": "openai/gpt-4o"}'
 ```
 
 ## Tests
 
 ```bash
-# Run all tests (447 tests, 95% coverage)
-python -m pytest tests/ --cov=src --cov-report=term-missing
-
-# Run acceptance tests only (12 PRD criteria)
-python -m pytest tests/acceptance/ -v
+python -m pytest
 ```
+
+## Deployment
+
+This project runs on a DigitalOcean VPS behind Traefik with automatic image pulls via Watchtower.
+
+### Production Stack
+
+| Component | Role |
+|-----------|------|
+| `ghcr.io/kingsleyonoh/multi-agent-rag` | FastAPI application container |
+| `pgvector/pgvector:pg16` | PostgreSQL 16 with vector search |
+| `redis:7-alpine` | Semantic cache and rate limiting |
+| Traefik | Reverse proxy with automatic TLS |
+
+Neo4j is excluded from the production compose due to 1GB VPS RAM constraints. Graph search returns empty results gracefully — hybrid retrieval falls back to vector + keyword scoring.
+
+### Self-Host
+
+```bash
+# Pull the image
+docker pull ghcr.io/kingsleyonoh/multi-agent-rag:latest
+
+# Or use the compose file
+docker compose -f docker-compose.prod.yml up -d
+```
+
+Set the environment variables listed in **Setup > Environment** before starting.
 
 ## License
 
