@@ -17,8 +17,25 @@ import json
 
 import httpx
 import structlog
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 logger = structlog.get_logger(__name__)
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=1, max=8),
+    reraise=True,
+)
+async def _stream_request(
+    url: str, payload: dict, headers: dict,
+) -> httpx.Response:
+    """Make the streaming HTTP POST with retry on connection errors."""
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        resp = await client.post(url, json=payload, headers=headers)
+    if resp.status_code >= 500:
+        raise RuntimeError(f"LLM_PROVIDER_ERROR: Server error {resp.status_code}")
+    return resp
 
 
 def format_sse(data: dict) -> str:
@@ -57,22 +74,21 @@ async def stream_chat_completion(
     url = f"{settings.OPENROUTER_BASE_URL.rstrip('/')}/chat/completions"
 
     try:
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            resp = await client.post(
-                url,
-                json={
-                    "model": model,
-                    "messages": messages,
-                    "temperature": temperature,
-                    "stream": True,
-                },
-                headers={
-                    "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
-                    "X-Title": getattr(settings, "OPENROUTER_APP_NAME", "rag-platform"),
-                    "HTTP-Referer": "https://github.com/multi-agent-rag-platform",
-                    "Content-Type": "application/json",
-                },
-            )
+        resp = await _stream_request(
+            url,
+            payload={
+                "model": model,
+                "messages": messages,
+                "temperature": temperature,
+                "stream": True,
+            },
+            headers={
+                "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
+                "X-Title": getattr(settings, "OPENROUTER_APP_NAME", "rag-platform"),
+                "HTTP-Referer": "https://github.com/multi-agent-rag-platform",
+                "Content-Type": "application/json",
+            },
+        )
 
         if resp.status_code != 200:
             logger.error("stream_api_error", status=resp.status_code)

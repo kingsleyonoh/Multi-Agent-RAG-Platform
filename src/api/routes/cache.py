@@ -6,27 +6,16 @@ estimated cost saved by the semantic cache.
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+
+from src.api.dependencies import get_semantic_cache
 
 router = APIRouter(tags=["cache"])
-
-
-# ── seam ─────────────────────────────────────────────────────────────
-
-def _get_cache_stats() -> dict:
-    """Seam — override in production to read from a real cache instance."""
-    return {
-        "total_entries": 0,
-        "total_lookups": 0,
-        "total_hits": 0,
-        "hit_rate": 0.0,
-        "estimated_cost_saved": 0.0,
-    }
 
 
 # ── endpoint ─────────────────────────────────────────────────────────
 
 @router.get("/stats")
-async def cache_stats():
-    """Return semantic-cache statistics."""
-    return _get_cache_stats()
+async def cache_stats(cache=Depends(get_semantic_cache)):
+    """Return semantic-cache statistics from the live cache instance."""
+    return await cache.get_stats_async()

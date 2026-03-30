@@ -60,9 +60,9 @@ async def search(
         List of :class:`SearchResult` ordered by descending similarity.
     """
     # Build cosine similarity expression
-    # pgvector: 1 - (embedding <=> query) gives cosine similarity
+    from sqlalchemy import literal_column
     embedding_literal = str(query_embedding)
-    similarity_expr = text(
+    similarity_expr = literal_column(
         f"1 - (chunks.embedding <=> '{embedding_literal}')"
     )
 

@@ -13,8 +13,15 @@ from __future__ import annotations
 import uuid
 
 import structlog
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.api.dependencies import get_db_session, get_settings_dep
+from src.api.middleware.auth import require_api_key
+from src.config import Settings
+from src.ingestion.embedder import embed_texts
+from src.retrieval.vector_search import search as vector_search
 
 logger = structlog.get_logger(__name__)
 
@@ -57,15 +64,55 @@ class SearchResponse(BaseModel):
 
 
 @router.post("/search")
-async def search_documents(body: SearchRequest) -> SearchResponse:
+async def search_documents(
+    body: SearchRequest,
+    session: AsyncSession = Depends(get_db_session),
+    settings: Settings = Depends(get_settings_dep),
+    auth: dict = Depends(require_api_key),
+) -> SearchResponse:
     """Embed query and search via pgvector cosine similarity.
 
     Returns results ranked by relevance score.
     """
-    # Placeholder — full wiring requires DB session + embedder dependency
     logger.info("search_requested", query_len=len(body.query), top_k=body.top_k)
+
+    # 1. Embed the query
+    try:
+        embeddings = await embed_texts(
+            texts=[body.query],
+            base_url=settings.OPENROUTER_BASE_URL,
+            api_key=settings.OPENROUTER_API_KEY,
+            model=settings.EMBEDDING_MODEL,
+        )
+        query_embedding = embeddings[0]
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=502, detail=f"Embedding failed: {exc}"
+        ) from exc
+
+    # 2. Vector search
+    results = await vector_search(
+        query_embedding=query_embedding,
+        session=session,
+        top_k=body.top_k,
+        threshold=body.threshold,
+        document_ids=body.document_ids,
+    )
+
+    items = [
+        SearchResultItem(
+            chunk_id=r.chunk_id,
+            document_id=r.document_id,
+            content=r.content,
+            score=r.score,
+            document_title=r.document_title,
+            document_source=r.document_source,
+        )
+        for r in results
+    ]
+
     return SearchResponse(
-        results=[],
+        results=items,
         query=body.query,
-        total=0,
+        total=len(items),
     )

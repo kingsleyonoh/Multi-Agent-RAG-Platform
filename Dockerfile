@@ -29,7 +29,6 @@ COPY --from=builder /install /usr/local
 # Copy application code
 COPY src/ ./src/
 COPY alembic.ini ./
-COPY alembic/ ./alembic/
 
 # Non-root user for security
 RUN useradd --create-home appuser

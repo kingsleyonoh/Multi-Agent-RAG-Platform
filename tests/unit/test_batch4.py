@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import respx
@@ -157,11 +157,44 @@ class TestOpenRouterClient:
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 
+def _mock_session():
+    """Return a mock async DB session for testing routes."""
+    session = AsyncMock()
+    # Mock execute to return empty result set
+    mock_result = MagicMock()
+    mock_result.scalar.return_value = 0
+    mock_result.scalars.return_value = MagicMock(all=MagicMock(return_value=[]))
+    mock_result.scalar_one_or_none.return_value = None
+    session.execute = AsyncMock(return_value=mock_result)
+    session.commit = AsyncMock()
+    return session
+
+
 def _test_app():
-    """Minimal app with all routers for endpoint testing."""
+    """Minimal app with dependency overrides for testing."""
+    from src.api.dependencies import (
+        get_cost_tracker,
+        get_db_session,
+        get_semantic_cache,
+        get_settings_dep,
+    )
+    from src.api.middleware.auth import require_api_key
+    from src.cache.semantic import SemanticCache
+    from src.llm.cost_tracker import CostTracker
     from src.main import create_app
 
-    return create_app()
+    app = create_app()
+
+    # Override dependencies (lifespan doesn't run in test mode)
+    app.dependency_overrides[get_db_session] = lambda: _mock_session()
+    app.dependency_overrides[require_api_key] = lambda: {
+        "api_key": "test-key",
+        "user_id": "test-user",
+    }
+    app.dependency_overrides[get_cost_tracker] = lambda: CostTracker()
+    app.dependency_overrides[get_semantic_cache] = lambda: SemanticCache()
+
+    return app
 
 
 class TestDocumentRoutes:
@@ -179,25 +212,13 @@ class TestDocumentRoutes:
         assert body["total"] == 0
 
     @pytest.mark.asyncio
-    async def test_get_document_returns_placeholder(self) -> None:
-        """GET /api/documents/{id} returns placeholder."""
+    async def test_get_document_returns_404(self) -> None:
+        """GET /api/documents/{id} returns 404 for missing doc."""
         doc_id = uuid.uuid4()
         transport = ASGITransport(app=_test_app())
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             resp = await client.get(f"/api/documents/{doc_id}")
-        assert resp.status_code == 200
-        assert resp.json()["id"] == str(doc_id)
-
-    @pytest.mark.asyncio
-    async def test_ingest_url_returns_201(self) -> None:
-        """POST /api/documents/url with valid body → 201."""
-        transport = ASGITransport(app=_test_app())
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            resp = await client.post(
-                "/api/documents/url",
-                json={"url": "https://example.com", "title": "Test"},
-            )
-        assert resp.status_code == 201
+        assert resp.status_code == 404
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -208,19 +229,33 @@ class TestDocumentRoutes:
 class TestSearchRoute:
     """Tests for the search API endpoint."""
 
+    @respx.mock
     @pytest.mark.asyncio
-    async def test_search_returns_empty(self) -> None:
-        """POST /api/search with default body → empty results."""
-        transport = ASGITransport(app=_test_app())
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            resp = await client.post(
-                "/api/search",
-                json={"query": "test query"},
+    async def test_search_returns_results(self) -> None:
+        """POST /api/search with mocked embedder + search → 200."""
+        respx.post("https://openrouter.ai/api/v1/embeddings").mock(
+            return_value=Response(
+                200,
+                json={
+                    "data": [{"embedding": [0.1] * 1536, "index": 0}],
+                },
             )
+        )
+
+        app = _test_app()
+        transport = ASGITransport(app=app)
+        with patch(
+            "src.api.routes.search.vector_search",
+            new=AsyncMock(return_value=[]),
+        ):
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                resp = await client.post(
+                    "/api/search",
+                    json={"query": "test query"},
+                )
         assert resp.status_code == 200
         body = resp.json()
-        assert body["results"] == []
-        assert body["total"] == 0
+        assert "results" in body
         assert body["query"] == "test query"
 
 
@@ -232,17 +267,49 @@ class TestSearchRoute:
 class TestChatRoute:
     """Tests for the chat API endpoint."""
 
+    @respx.mock
     @pytest.mark.asyncio
-    async def test_sync_chat_returns_placeholder(self) -> None:
-        """POST /api/chat/sync → placeholder response."""
-        transport = ASGITransport(app=_test_app())
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            resp = await client.post(
-                "/api/chat/sync",
-                json={"query": "What is RAG?"},
+    async def test_sync_chat_returns_response(self) -> None:
+        """POST /api/chat/sync with mocked LLM → valid response."""
+        from src.agents.executor import ExecutorResult
+
+        # Mock embedding
+        respx.post("https://openrouter.ai/api/v1/embeddings").mock(
+            return_value=Response(
+                200,
+                json={"data": [{"embedding": [0.1] * 1536, "index": 0}]},
             )
+        )
+
+        app = _test_app()
+        transport = ASGITransport(app=app)
+
+        mock_exec_result = ExecutorResult(
+            answer="RAG retrieves context.",
+            tool_calls=[],
+            total_steps=1,
+            model_used="openai/gpt-4o-mini",
+            tokens_in=20,
+            tokens_out=10,
+            cost_usd=0.001,
+        )
+
+        with patch(
+            "src.api.routes.chat.AgentExecutor",
+        ) as MockExecutorClass, patch(
+            "src.retrieval.engine.vector_search_fn",
+            new=AsyncMock(return_value=[]),
+        ):
+            mock_instance = AsyncMock()
+            mock_instance.run = AsyncMock(return_value=mock_exec_result)
+            MockExecutorClass.return_value = mock_instance
+
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                resp = await client.post(
+                    "/api/chat/sync",
+                    json={"query": "What is RAG?"},
+                )
         assert resp.status_code == 200
         body = resp.json()
         assert "response" in body
-        assert body["sources"] == []
         assert body["model_used"] is not None

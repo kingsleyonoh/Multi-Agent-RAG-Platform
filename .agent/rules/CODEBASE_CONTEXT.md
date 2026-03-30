@@ -2,7 +2,7 @@
 
 > Primary source of truth for all workflows. Updated by `/sync-context`.
 >
-> Last updated: 2026-03-21
+> Last updated: 2026-03-29
 > Template synced: 2026-03-28
 
 ## Tech Stack
@@ -105,6 +105,7 @@ multi-agent-rag-platform/
 | `REDIS_URL` | Redis cache + session connection | Docker Compose |
 | `API_KEYS` | API key(s) for auth middleware | Manual config |
 | `DAILY_COST_LIMIT_USD` | Per-day LLM spend cap | Manual config |
+| `SIMILARITY_THRESHOLD` | Threshold for vector cosine similarity | `.env` |
 | `TEST_DATABASE_URL` | PostgreSQL connection for pytest test runs | `.env` (same as `DATABASE_URL` locally) |
 | `TEST_REDIS_URL` | Redis connection for pytest integration tests | `.env` (same as `REDIS_URL` locally) |
 | `MOCK_LLM` | Use fixture responses instead of live APIs | Test env |
@@ -154,6 +155,7 @@ multi-agent-rag-platform/
 | Category | File(s) | What it establishes |
 |----------|---------|-------------------|
 | Config | `src/config.py` | Pydantic Settings model, all env vars, defaults |
+| Dependency Injection | `src/api/dependencies.py` | Dependency injection functions (DB session, API key, Redis, tracker) |
 | DB clients | `src/db/postgres.py` | Async SQLAlchemy engine, session factory, pgvector init |
 | DB clients | `src/db/neo4j.py` | Neo4j driver, constraint creation, graceful degradation |
 | DB clients | `src/db/redis.py` | Async Redis client (cached), health check, graceful degradation |

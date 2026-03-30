@@ -48,14 +48,16 @@ class TestEntityExtractor:
 class TestGraphSearch:
     """Query Neo4j for entities related to query."""
 
-    def test_search_returns_list(self):
+    @pytest.mark.asyncio
+    async def test_search_returns_list(self):
         from src.retrieval.graph_search import search_graph
-        results = search_graph(query_entities=["Google"])
+        results = await search_graph(query_entities=["Google"])
         assert isinstance(results, list)
 
-    def test_empty_query_returns_empty(self):
+    @pytest.mark.asyncio
+    async def test_empty_query_returns_empty(self):
         from src.retrieval.graph_search import search_graph
-        results = search_graph(query_entities=[])
+        results = await search_graph(query_entities=[])
         assert results == []
 
     def test_result_has_entity_and_chunks(self):
@@ -118,16 +120,38 @@ class TestReranker:
 class TestHybridRetrievalEngine:
     """Orchestrate vector + keyword + graph + reranking."""
 
-    def test_retrieve_returns_list(self):
+    @pytest.mark.asyncio
+    async def test_retrieve_returns_list(self):
+        from unittest.mock import AsyncMock, MagicMock, patch
+
         from src.retrieval.engine import HybridRetrievalEngine
-        engine = HybridRetrievalEngine()
-        results = engine.retrieve("What is machine learning?")
+
+        mock_session = AsyncMock()
+        mock_settings = MagicMock()
+        mock_settings.SIMILARITY_THRESHOLD = 0.7
+        mock_settings.RETRIEVAL_TOP_K = 10
+        mock_settings.RERANK_TOP_N = 5
+        engine = HybridRetrievalEngine(
+            session=mock_session, settings=mock_settings,
+        )
+        with patch.object(engine, "_vector_search", new_callable=AsyncMock, return_value=[]):
+            results = await engine.retrieve(
+                "What is machine learning?", query_embedding=[0.1] * 1536,
+            )
         assert isinstance(results, list)
 
-    def test_retrieve_empty_query(self):
+    @pytest.mark.asyncio
+    async def test_retrieve_empty_query(self):
+        from unittest.mock import AsyncMock, MagicMock
+
         from src.retrieval.engine import HybridRetrievalEngine
-        engine = HybridRetrievalEngine()
-        results = engine.retrieve("")
+
+        mock_session = AsyncMock()
+        mock_settings = MagicMock()
+        engine = HybridRetrievalEngine(
+            session=mock_session, settings=mock_settings,
+        )
+        results = await engine.retrieve("", query_embedding=[])
         assert results == []
 
 

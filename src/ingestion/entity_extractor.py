@@ -18,7 +18,22 @@ from dataclasses import dataclass
 
 import structlog
 
+from neo4j import AsyncDriver
+
 logger = structlog.get_logger(__name__)
+
+# Module-level Neo4j driver, wired at startup via init_entity_extractor().
+_neo4j_driver: AsyncDriver | None = None
+
+
+def init_entity_extractor(neo4j_driver: AsyncDriver | None) -> None:
+    """Wire the Neo4j driver for entity persistence.
+
+    Called once during application startup from ``main.py``.
+    """
+    global _neo4j_driver  # noqa: PLW0603
+    _neo4j_driver = neo4j_driver
+    logger.info("entity_extractor_initialized", has_driver=neo4j_driver is not None)
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,28 +99,44 @@ def extract_entities(text: str) -> list[ExtractedEntity]:
     return found
 
 
-# ── Neo4j upsert seam ────────────────────────────────────────────────
-
-def _run_cypher(query: str, params: dict) -> None:
-    """Seam for Neo4j Cypher execution. Override in tests."""
-    pass
+# ── Neo4j upsert ─────────────────────────────────────────────────────
 
 
-def upsert_entities(
+async def _run_cypher(query: str, params: dict) -> None:
+    """Execute a Cypher statement against the wired Neo4j driver.
+
+    No-ops gracefully when Neo4j is unavailable.
+    """
+    if _neo4j_driver is None:
+        return
+    try:
+        async with _neo4j_driver.session() as session:
+            await session.run(query, params)
+    except Exception:
+        logger.warning("entity_cypher_failed", exc_info=True)
+
+
+async def upsert_entities(
     entities: list[ExtractedEntity],
     document_id: str,
 ) -> None:
     """Upsert extracted entities into Neo4j.
 
+    Creates Entity nodes and EXTRACTED_FROM relationships to the
+    source document.  Gracefully no-ops when Neo4j is unavailable.
+
     Args:
         entities: Entities to store.
         document_id: Source document identifier.
     """
+    if not entities or _neo4j_driver is None:
+        return
+
     for entity in entities:
-        _run_cypher(
+        await _run_cypher(
             "MERGE (e:Entity {value: $value, type: $type}) "
             "MERGE (d:Document {id: $doc_id}) "
             "MERGE (e)-[:EXTRACTED_FROM]->(d)",
             {"value": entity.value, "type": entity.type, "doc_id": document_id},
         )
-    logger.debug("entities_upserted", count=len(entities), doc=document_id)
+    logger.info("entities_upserted", count=len(entities), doc=document_id[:12])

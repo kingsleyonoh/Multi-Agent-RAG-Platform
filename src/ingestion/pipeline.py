@@ -24,6 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.db.models import Chunk, Document
 from src.ingestion.chunker import chunk_text
 from src.ingestion.embedder import embed_texts
+from src.ingestion.entity_extractor import extract_entities, upsert_entities
 from src.lib.utils import content_hash
 
 logger = structlog.get_logger(__name__)
@@ -110,10 +111,20 @@ async def ingest_document(
         )
 
     await session.flush()
+
+    # ── Entity extraction → Neo4j ─────────────────────────────
+    all_entities = []
+    for chunk in chunks:
+        entities = extract_entities(chunk.content)
+        all_entities.extend(entities)
+    if all_entities:
+        await upsert_entities(all_entities, str(doc_id))
+
     logger.info(
         "document_ingested",
         doc_id=str(doc_id),
         chunks=len(chunks),
+        entities=len(all_entities),
         title=title[:50],
     )
     return doc_id
