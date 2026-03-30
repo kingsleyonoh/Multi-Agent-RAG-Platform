@@ -250,4 +250,6 @@ You are free to use, modify, and distribute this software under AGPLv3 terms. If
 
 **Commercial licensing** is available for organizations that need to embed this technology in proprietary systems without AGPLv3 obligations. Contact [Klevar](https://kingsleyonoh.com) for enterprise licensing terms.
 
-<!-- THEATRE_LINK -->
+---
+
+Full case study, architectural breakdown, and engineering deep-dive at [kingsleyonoh.com/projects/multi-agent-rag-platform](https://www.kingsleyonoh.com/projects/multi-agent-rag-platform)
